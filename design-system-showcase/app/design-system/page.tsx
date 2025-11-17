@@ -154,7 +154,7 @@ export default function DesignSystemShowcase() {
               ))}
               {notifications.length === 0 && (
                 <div className="rounded-md bg-(--surface-muted) px-5 py-6 text-sm text-(--text-secondary)">
-                  You're all caught up.
+                  You&apos;re all caught up.
                 </div>
               )}
             </div>
