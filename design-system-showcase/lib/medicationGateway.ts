@@ -1,4 +1,16 @@
-export const GATEWAY_BASE_URL="https://api.invictushealth.tech/catalog/gateway";
+const DEFAULT_GATEWAY_BASE_URL =
+  "https://api.invictushealth.tech/catalog/gateway";
+
+export const GATEWAY_BASE_URL =
+  process.env.NEXT_PUBLIC_GATEWAY_API_BASE_URL?.trim() ||
+  DEFAULT_GATEWAY_BASE_URL;
+
+// Configuration for handling slow provider responses
+export const PROVIDER_TIMEOUT_CONFIG = {
+  INITIAL_DELAY_MS: 3000, // Wait 3 seconds before first retry
+  MAX_RETRIES: 2, // Try up to 3 times total (initial + 2 retries)
+  BACKOFF_MULTIPLIER: 1.5, // Increase delay by 50% each retry
+};
 
 // ---------- Types ----------
 
@@ -255,6 +267,116 @@ export function buildViewModelFromResponse(
     perMedication,
     totalMedications,
     hasAnyProviderErrors,
+  };
+}
+
+/**
+ * Merges a new view model with an existing one, combining results from multiple providers.
+ * This is used when retrying a search to get results from slower providers.
+ */
+export function mergeViewModels(
+  existing: BatchSearchViewModel,
+  incoming: BatchSearchViewModel
+): BatchSearchViewModel {
+  // Merge per-medication options
+  const mergedPerMedication: PerMedicationViewModel[] = existing.perMedication.map(
+    (existingMed) => {
+      const incomingMed = incoming.perMedication.find(
+        (m) => m.medicationKey === existingMed.medicationKey
+      );
+
+      if (!incomingMed) {
+        return existingMed;
+      }
+
+      // Combine options from both, removing duplicates by provider + product name
+      const optionMap = new Map<string, PerMedicationOption>();
+      
+      [...existingMed.options, ...incomingMed.options].forEach((option) => {
+        const key = `${option.provider}|${option.productName}`;
+        if (!optionMap.has(key)) {
+          optionMap.set(key, option);
+        }
+      });
+
+      const mergedOptions = Array.from(optionMap.values()).sort(
+        (a, b) =>
+          (a.unitPrice ?? Number.POSITIVE_INFINITY) -
+          (b.unitPrice ?? Number.POSITIVE_INFINITY)
+      );
+
+      return {
+        medicationKey: existingMed.medicationKey,
+        query: incomingMed.query || existingMed.query,
+        options: mergedOptions,
+        // Keep provider errors flag if either has errors
+        hasProviderErrors:
+          existingMed.hasProviderErrors || incomingMed.hasProviderErrors,
+      };
+    }
+  );
+
+  // Merge aggregated stores
+  const storeMap = new Map<string, AggregatedStore>();
+
+  [...existing.aggregatedStores, ...incoming.aggregatedStores].forEach(
+    (store) => {
+      if (!storeMap.has(store.storeId)) {
+        storeMap.set(store.storeId, { ...store });
+      } else {
+        // Merge medications for the same store
+        const existingStore = storeMap.get(store.storeId)!;
+        const medMap = new Map<string, AggregatedStoreMedication>();
+
+        [...existingStore.medications, ...store.medications].forEach((med) => {
+          const existing = medMap.get(med.medicationKey);
+          if (!existing || med.unitPrice < existing.unitPrice) {
+            medMap.set(med.medicationKey, med);
+          }
+        });
+
+        existingStore.medications = Array.from(medMap.values());
+        existingStore.availableMedicationCount = existingStore.medications.length;
+        existingStore.hasAllMedications =
+          existingStore.availableMedicationCount === existingStore.totalMedications;
+        existingStore.totalCostForAvailable = existingStore.medications.reduce(
+          (sum, med) => sum + med.packPrice,
+          0
+        );
+      }
+    }
+  );
+
+  const mergedStores = Array.from(storeMap.values());
+
+  // Re-sort stores
+  mergedStores.sort((a, b) => {
+    if (a.hasAllMedications && !b.hasAllMedications) return -1;
+    if (!a.hasAllMedications && b.hasAllMedications) return 1;
+
+    if (a.hasAllMedications && b.hasAllMedications) {
+      if (a.totalCostForAvailable !== b.totalCostForAvailable) {
+        return a.totalCostForAvailable - b.totalCostForAvailable;
+      }
+      const aDist = a.distanceKm ?? Number.POSITIVE_INFINITY;
+      const bDist = b.distanceKm ?? Number.POSITIVE_INFINITY;
+      return aDist - bDist;
+    }
+
+    if (a.availableMedicationCount !== b.availableMedicationCount) {
+      return b.availableMedicationCount - a.availableMedicationCount;
+    }
+    const aDist = a.distanceKm ?? Number.POSITIVE_INFINITY;
+    const bDist = b.distanceKm ?? Number.POSITIVE_INFINITY;
+    return aDist - bDist;
+  });
+
+  return {
+    aggregatedStores: mergedStores,
+    perMedication: mergedPerMedication,
+    totalMedications: existing.totalMedications,
+    hasAnyProviderErrors:
+      mergedPerMedication.some((m) => m.hasProviderErrors),
   };
 }
 

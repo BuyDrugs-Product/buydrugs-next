@@ -14,9 +14,8 @@ import {
   PerMedicationViewModel,
   UiMedicationInput,
   buildBatchSearchRequestFromUi,
-  buildViewModelFromResponse,
-  runBatchSearch,
 } from "@/lib/medicationGateway";
+import { useMedicationSearch } from "@/hooks/useMedicationSearch";
 
 type MedicationRow = {
   id: string;
@@ -37,7 +36,7 @@ export default function Home() {
   const medicationNameRef = useRef<HTMLInputElement | null>(null);
   const dosageRef = useRef<HTMLInputElement | null>(null);
   const quantityRef = useRef<HTMLInputElement | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
+  
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
     null
   );
@@ -46,16 +45,25 @@ export default function Home() {
     MedicationRow[] | null
   >(null);
   const [hasSeenLocationPrompt, setHasSeenLocationPrompt] = useState(false);
-  const [searchViewModel, setSearchViewModel] =
-    useState<BatchSearchViewModel | null>(null);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [searchStatus, setSearchStatus] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
+  
+  // Use the custom hook
+  const {
+    startSearch: runSearch,
+    cancelSearch,
+    viewModel: searchViewModel,
+    status: searchStatus,
+    error: searchError,
+    isRetrying: isProviderRetrying,
+    providerCount
+  } = useMedicationSearch();
+
   const [activeResultsTab, setActiveResultsTab] = useState<
     "pharmacies" | "medications"
   >("pharmacies");
   const resultsHeadingRef = useRef<HTMLHeadingElement | null>(null);
+
+  // Map hook state to local state equivalent
+  const isSearching = searchStatus === "loading" || isProviderRetrying;
 
   const handleCurrentChange = (
     field: keyof Omit<MedicationRow, "id">,
@@ -128,7 +136,8 @@ export default function Home() {
       return prev.filter((med) => med.id !== id);
     });
   };
-  const startSearch = async (
+
+  const startSearch = (
     payload: MedicationRow[],
     locationOverride?: { lat: number; lng: number } | null
   ) => {
@@ -144,24 +153,7 @@ export default function Home() {
       locationOverride ?? location
     );
 
-    setIsSearching(true);
-    setSearchStatus("loading");
-    setSearchError(null);
-
-    try {
-      const response = await runBatchSearch(request);
-      const viewModel = buildViewModelFromResponse(response);
-      setSearchViewModel(viewModel);
-      setSearchStatus("success");
-    } catch (error: any) {
-      setSearchError(
-        error?.message ||
-          "We couldn’t complete your search. Please try again."
-      );
-      setSearchStatus("error");
-    } finally {
-      setIsSearching(false);
-    }
+    runSearch(request);
   };
 
   const handleComparePrices = () => {
@@ -385,7 +377,11 @@ export default function Home() {
                 {isSearching ? (
                   <>
                     <Spinner />
-                    <span className="ml-2">Comparing prices…</span>
+                    <span className="ml-2">
+                      {isProviderRetrying
+                        ? "Still waiting for pharmacies…"
+                        : "Comparing prices…"}
+                    </span>
                   </>
                 ) : (
                   "Compare Prices Now"
@@ -401,6 +397,8 @@ export default function Home() {
           viewModel={searchViewModel}
           errorMessage={searchError}
           hasResults={!!hasResults}
+          isProviderRetrying={isProviderRetrying}
+          providerCount={providerCount}
           activeTab={activeResultsTab}
           onTabChange={setActiveResultsTab}
           headingRef={resultsHeadingRef}
@@ -580,6 +578,8 @@ type ResultsContainerProps = {
   viewModel: BatchSearchViewModel | null;
   errorMessage: string | null;
   hasResults: boolean;
+  isProviderRetrying: boolean;
+  providerCount: number;
   activeTab: "pharmacies" | "medications";
   onTabChange: (tab: "pharmacies" | "medications") => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
@@ -590,6 +590,8 @@ export const ResultsContainer: React.FC<ResultsContainerProps> = ({
   viewModel,
   errorMessage,
   hasResults,
+  isProviderRetrying,
+  providerCount,
   activeTab,
   onTabChange,
   headingRef,
@@ -632,13 +634,25 @@ export const ResultsContainer: React.FC<ResultsContainerProps> = ({
             {viewModel.aggregatedStores.length > 0
               ? `${viewModel.aggregatedStores.length} pharmacies`
               : `${viewModel.perMedication.length} medications`}
-            {" for your prescription."}
+            {" for your prescription. "}
+            <span className="text-[10px] text-(--text-tertiary)">
+              ({viewModel.perMedication.reduce((sum, m) => sum + m.options.length, 0)} total options from{" "}
+              {providerCount} providers)
+            </span>
           </span>
         )}
         {status === "success" && !hasResults && (
           <span>No pharmacies were found for this prescription.</span>
         )}
       </div>
+      {isProviderRetrying && (
+        <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-(--surface-muted) px-3 py-2 text-xs text-(--text-secondary)">
+          <Spinner />
+          <span>
+            Some pharmacies are taking longer to respond. We&apos;re showing partial results while waiting for all providers…
+          </span>
+        </div>
+      )}
 
       {showIdlePlaceholder && (
         <p className="mt-4 text-xs text-(--text-tertiary)">
