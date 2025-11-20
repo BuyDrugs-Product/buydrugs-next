@@ -40,8 +40,13 @@ type LinkItem = {
 };
 
 export function Header() {
+  const [isMounted, setIsMounted] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const scrolled = useScroll(10);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   React.useEffect(() => {
     if (open) {
@@ -53,6 +58,10 @@ export function Header() {
       document.body.style.overflow = '';
     };
   }, [open]);
+
+  if (!isMounted) {
+    return <header className="h-14 w-full" />;
+  }
 
   return (
     <header
