@@ -17,6 +17,8 @@ import {
   HelpCircle,
   BarChart,
   PlugIcon,
+  LogOut,
+  User,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -31,6 +33,9 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
+import { useUser } from '@/hooks/useUser';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 type LinkItem = {
   title: string;
@@ -40,9 +45,13 @@ type LinkItem = {
 };
 
 export function Header() {
+  const router = useRouter();
+  const { user, loading } = useUser();
   const [isMounted, setIsMounted] = React.useState(false);
   const [open, setOpen] = React.useState(false);
+  const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const scrolled = useScroll(10);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -58,6 +67,43 @@ export function Header() {
       document.body.style.overflow = '';
     };
   }, [open]);
+
+  // Close user menu when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    if (userMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [userMenuOpen]);
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('Sign out error:', error);
+        return;
+      }
+
+      // Close the menu
+      setUserMenuOpen(false);
+
+      // Navigate to sign-in page
+      router.push('/sign-in');
+    } catch (error) {
+      console.error('Unexpected sign out error:', error);
+    }
+  };
 
   if (!isMounted) {
     return <header className="h-14 w-full" />;
@@ -146,8 +192,40 @@ export function Header() {
           </NavigationMenu>
         </div>
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="outline">Sign In</Button>
-          <Button>Get Started</Button>
+          {loading ? (
+            <div className="h-9 w-24 animate-pulse rounded-lg bg-(--surface-elevated)" />
+          ) : user ? (
+            <div className="relative" ref={userMenuRef}>
+              <Button
+                variant="outline"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2"
+              >
+                <User className="h-4 w-4" />
+                {user.email?.split('@')[0]}
+              </Button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-12 z-50 w-48 rounded-lg border border-(--border-subtle) bg-(--surface-elevated) p-2 shadow-(--shadow-card)">
+                  <div className="border-b border-(--border-subtle) px-3 py-2">
+                    <p className="text-xs text-(--text-tertiary)">Signed in as</p>
+                    <p className="truncate text-sm font-medium text-(--text-primary)">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="mt-2 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-(--text-secondary) hover:bg-(--state-hover) hover:text-(--text-primary)"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => router.push('/sign-in')}>Sign In</Button>
+              <Button onClick={() => router.push('/sign-up')}>Get Started</Button>
+            </>
+          )}
         </div>
         <Button
           size="icon"
@@ -182,10 +260,30 @@ export function Header() {
           </div>
         </NavigationMenu>
         <div className="flex flex-col gap-2">
-          <Button variant="outline" className="w-full bg-transparent">
-            Sign In
-          </Button>
-          <Button className="w-full">Get Started</Button>
+          {loading ? (
+            <>
+              <div className="h-10 w-full animate-pulse rounded-lg bg-(--surface-elevated)" />
+              <div className="h-10 w-full animate-pulse rounded-lg bg-(--surface-elevated)" />
+            </>
+          ) : user ? (
+            <>
+              <div className="rounded-lg border border-(--border-subtle) bg-(--surface-elevated) p-3">
+                <p className="text-xs text-(--text-tertiary)">Signed in as</p>
+                <p className="truncate text-sm font-medium text-(--text-primary)">{user.email}</p>
+              </div>
+              <Button variant="outline" className="w-full bg-transparent" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="w-full bg-transparent" onClick={() => router.push('/sign-in')}>
+                Sign In
+              </Button>
+              <Button className="w-full" onClick={() => router.push('/sign-up')}>Get Started</Button>
+            </>
+          )}
         </div>
       </MobileMenu>
     </header>

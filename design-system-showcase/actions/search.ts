@@ -41,3 +41,7 @@ export async function searchMedicationsAction(
   return response.json();
 }
 
+
+
+
+
