@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarGroup } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -18,6 +18,7 @@ import { TextAreaField } from "@/components/TextAreaField";
 import { TextField } from "@/components/TextField";
 import { Toggle } from "@/components/Toggle";
 import { cn } from "@/lib/cn";
+import toast from "react-hot-toast";
 
 const viewSegments = [
   { value: "overview", label: "Overview" },
@@ -83,6 +84,291 @@ export default function DesignSystemShowcase() {
       )
     );
   };
+
+  // Toast position state
+  const [toastPosition, setToastPosition] = useState<
+    | "top-left"
+    | "top-center"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-center"
+    | "bottom-right"
+  >("top-right");
+
+  // Toast examples - using useMemo to recreate when position changes
+  const toastExamples: Array<{
+    title: string;
+    action: () => void;
+    emoji: string;
+    snippet: string;
+  }> = [
+    {
+      title: "Success",
+      emoji: "✅",
+      snippet: `toast.success('Successfully saved!', {
+  position: '${toastPosition}',
+})`,
+      action: () => {
+        toast.success("Successfully saved!", { position: toastPosition });
+      },
+    },
+    {
+      title: "Error",
+      emoji: "❌",
+      snippet: `toast.error("Something went wrong!", {
+  position: '${toastPosition}',
+})`,
+      action: () => {
+        toast.error("Something went wrong!", { position: toastPosition });
+      },
+    },
+    {
+      title: "Promise",
+      emoji: "⏳",
+      snippet: `toast.promise(
+  promise,
+  {
+    loading: 'Loading data...',
+    success: 'Data loaded successfully!',
+    error: 'Failed to load data',
+  },
+  {
+    position: '${toastPosition}',
+  }
+);`,
+      action: () => {
+        const promise = new Promise((resolve) => {
+          setTimeout(() => resolve("Data loaded!"), 2000);
+        });
+        toast.promise(
+          promise,
+          {
+            loading: "Loading data...",
+            success: "Data loaded successfully!",
+            error: "Failed to load data",
+          },
+          {
+            position: toastPosition,
+          }
+        );
+      },
+    },
+    {
+      title: "Multi Line",
+      emoji: "↕️",
+      snippet: `toast(
+  "This is a multi-line toast message.\\nIt supports line breaks and longer text content.",
+  {
+    duration: 4000,
+    position: '${toastPosition}',
+  }
+);`,
+      action: () => {
+        toast(
+          "This is a multi-line toast message.\nIt supports line breaks and longer text content.",
+          {
+            duration: 4000,
+            position: toastPosition,
+          }
+        );
+      },
+    },
+    {
+      title: "Emoji",
+      emoji: "👏",
+      snippet: `toast('Here is your toast! 🚀', {
+  icon: '👋',
+  position: '${toastPosition}',
+});`,
+      action: () => {
+        toast("Here is your toast! 🚀", {
+          icon: "👋",
+          position: toastPosition,
+        });
+      },
+    },
+    {
+      title: "Dark Mode",
+      emoji: "🌚",
+      snippet: `toast('Dark mode styled toast', {
+  style: {
+    background: '#1f2937',
+    color: '#fff',
+  },
+  iconTheme: {
+    primary: '#fff',
+    secondary: '#1f2937',
+  },
+  position: '${toastPosition}',
+});`,
+      action: () => {
+        toast("Dark mode styled toast", {
+          style: {
+            background: "#1f2937",
+            color: "#fff",
+          },
+          iconTheme: {
+            primary: "#fff",
+            secondary: "#1f2937",
+          },
+          position: toastPosition,
+        });
+      },
+    },
+    {
+      title: "JSX Content",
+      emoji: "🔩",
+      snippet: `toast((t) => (
+  <span>
+    Custom and <b>bold</b>
+    <button onClick={() => toast.dismiss(t.id)}>
+      Dismiss
+    </button>
+  </span>
+), {
+  position: '${toastPosition}',
+});`,
+      action: () => {
+        toast(
+          (t) => (
+            <span>
+              Custom and <b>bold</b>
+              <button
+                className="ml-2 py-1 rounded px-2 border bg-gray-100 text-gray-900"
+                onClick={() => toast.dismiss(t.id)}
+              >
+                Dismiss
+              </button>
+            </span>
+          ),
+          {
+            position: toastPosition,
+          }
+        );
+      },
+    },
+    {
+      title: "Themed",
+      emoji: "🎨",
+      snippet: `toast.success('Successfully created!', {
+  iconTheme: {
+    primary: '#10b981',
+    secondary: '#fff',
+  },
+  position: '${toastPosition}',
+});`,
+      action: () => {
+        toast.success("Successfully created!", {
+          iconTheme: {
+            primary: "#10b981",
+            secondary: "#fff",
+          },
+          position: toastPosition,
+        });
+      },
+    },
+    {
+      title: "Custom Position",
+      emoji: "⬆️",
+      snippet: `toast.success('Always at the bottom.', {
+  position: '${toastPosition}',
+  duration: 10000,
+})`,
+      action: () => {
+        toast.success("Always at the bottom.", {
+          position: toastPosition,
+          duration: 10000,
+        });
+      },
+    },
+    {
+      title: "TailwindCSS",
+      emoji: "💨",
+      snippet: `toast.custom((t) => (
+  <div
+    className={\`\${
+      t.visible ? 'animate-enter' : 'animate-leave'
+    } max-w-md w-full bg-white shadow-lg rounded-lg\`}
+  >
+    <div className="p-4">
+      <p className="font-medium">Custom Toast</p>
+      <p className="text-sm text-gray-500">With TailwindCSS styling</p>
+    </div>
+  </div>
+), {
+  position: '${toastPosition}',
+})`,
+      action: () => {
+        toast.custom(
+          (t) => (
+            <div
+              className={`${
+                t.visible ? "animate-enter" : "animate-leave"
+              } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
+            >
+              <div className="flex-1 w-0 p-4">
+                <div className="flex items-start">
+                  <div className="shrink-0 pt-0.5">
+                    <div className="h-10 w-10 rounded-full bg-(--surface-muted) flex items-center justify-center">
+                      <span className="text-lg">💨</span>
+                    </div>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className="text-sm font-medium text-(--text-primary)">
+                      Custom Toast
+                    </p>
+                    <p className="mt-1 text-sm text-(--text-secondary)">
+                      With TailwindCSS styling
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex border-l border-(--border-subtle)">
+                <button
+                  onClick={() => toast.dismiss(t.id)}
+                  className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-(--text-brand) hover:text-(--text-primary) focus:outline-none focus:ring-2 focus:ring-(--border-focus)"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          ),
+          {
+            position: toastPosition,
+            duration: 10000,
+          }
+        );
+      },
+    },
+    {
+      title: "Loading",
+      emoji: "⏱️",
+      snippet: `const toastId = toast.loading('Processing...', {
+  position: '${toastPosition}',
+});
+setTimeout(() => {
+  toast.success('Processing complete!', { 
+    id: toastId,
+    position: '${toastPosition}',
+  });
+}, 5000);`,
+      action: () => {
+        const toastId = toast.loading("Processing...", {
+          position: toastPosition,
+        });
+        setTimeout(() => {
+          toast.success("Processing complete!", {
+            id: toastId,
+            position: toastPosition,
+          });
+        }, 5000);
+      },
+    },
+  ];
+
+  // Toast examples state - track selected example index
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<number>(0);
+  const selectedSnippet = toastExamples[selectedExampleIndex]?.snippet || "";
 
   return (
     <main className="min-h-screen bg-(--surface-app) px-6 py-10 lg:px-12 lg:py-14">
@@ -458,6 +744,82 @@ export default function DesignSystemShowcase() {
               </section>
             </div>
           </Card>
+
+          <Card className="col-span-12" surface="elevated" elevation="md">
+            <div className="flex flex-col gap-8">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h3 className="text-2xl font-semibold text-(--text-primary)">
+                  Toast Notifications
+                </h3>
+                <p className="text-sm text-(--text-secondary)">
+                  Interactive examples with live code snippets
+                </p>
+              </div>
+
+              <section className="grid md:grid-cols-2 gap-6">
+                <div className="flex items-center">
+                  <div className="w-full grid grid-cols-2 gap-2 bg-(--surface-muted) rounded-xl p-3">
+                    {toastExamples.map((example, index) => (
+                      <EmojiButton
+                        key={example.title}
+                        emoji={example.emoji}
+                        onClick={() => {
+                          setSelectedExampleIndex(index);
+                          example.action();
+                        }}
+                      >
+                        {example.title}
+                      </EmojiButton>
+                    ))}
+                  </div>
+                </div>
+                <div className="md:h-96 w-full overflow-auto rounded-lg border border-(--border-subtle) bg-(--surface-muted)">
+                  <CodeSnippet snippet={selectedSnippet} />
+                </div>
+              </section>
+
+              <section className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="mb-3 text-sm font-semibold text-(--text-primary)">
+                    Change Position
+                  </h4>
+                  <div className="rounded-lg border border-(--border-subtle) bg-(--surface-muted) p-4">
+                    <pre className="mb-4 rounded bg-(--surface-elevated) p-3 text-xs font-mono text-(--text-primary) overflow-x-auto">
+                      <code>{`<Toaster
+  position="${toastPosition}"
+  reverseOrder={false}
+/>`}</code>
+                    </pre>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          "top-left",
+                          "top-center",
+                          "top-right",
+                          "bottom-left",
+                          "bottom-center",
+                          "bottom-right",
+                        ] as const
+                      ).map((pos) => (
+                        <button
+                          key={pos}
+                          onClick={() => setToastPosition(pos)}
+                          className={cn(
+                            "rounded-md px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2",
+                            toastPosition === pos
+                              ? "bg-(--action-primary) text-(--action-on-primary)"
+                              : "bg-(--surface-elevated) text-(--text-secondary) hover:bg-(--surface-muted)"
+                          )}
+                        >
+                          {pos}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </Card>
         </div>
       </div>
     </main>
@@ -603,4 +965,28 @@ const GoalRow = ({
       {label}
     </span>
   </div>
+);
+
+const EmojiButton = ({
+  emoji,
+  children,
+  onClick,
+}: {
+  emoji: string;
+  children: React.ReactNode;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className="flex flex-col items-center justify-center gap-1 rounded-md bg-(--surface-elevated) p-2.5 text-xs font-medium text-(--text-primary) shadow-(--shadow-1) transition-all hover:scale-105 hover:shadow-(--shadow-2) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface-muted)"
+  >
+    <span className="text-lg">{emoji}</span>
+    <span className="text-[10px] leading-tight">{children}</span>
+  </button>
+);
+
+const CodeSnippet = ({ snippet }: { snippet: string }) => (
+  <pre className="p-6 text-xs font-mono text-(--text-primary) leading-relaxed overflow-x-auto">
+    <code className="text-(--text-primary) whitespace-pre">{snippet}</code>
+  </pre>
 );

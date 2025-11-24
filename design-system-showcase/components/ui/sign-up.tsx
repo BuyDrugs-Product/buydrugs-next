@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -944,6 +944,13 @@ interface ProviderVerificationFlowProps {
   onLicenseUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
+// Email validation function
+const isValidEmail = (email: string): boolean => {
+  if (!email.trim()) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
   role,
   adminProfile,
@@ -953,6 +960,8 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
   onLicenseUpload,
 }) => {
   const isAdmin = role === 'pharmacy_admin';
+  const emailInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [emailErrors, setEmailErrors] = useState<Record<number, string>>({});
 
   if (role === 'customer') {
     return null;
@@ -1067,35 +1076,117 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
               Invite teammates so they can assist with prescriptions and customer care once you’re verified.
             </p>
             <div className="space-y-3">
-              {adminProfile.staffInvites.map((email, index) => (
-                <div key={`${email}-${index}`} className="flex gap-2">
-                  <TextField
-                    type="email"
-                    placeholder="team@sunrisepharmacy.com"
-                    value={email}
-                    onChange={(event) => {
-                      const next = [...adminProfile.staffInvites];
-                      next[index] = event.target.value;
-                      onAdminChange((prev) => ({ ...prev, staffInvites: next }));
-                    }}
-                    className="flex-1"
-                  />
-                  {adminProfile.staffInvites.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => {
-                        onAdminChange((prev) => ({
-                          ...prev,
-                          staffInvites: prev.staffInvites.filter((_, idx) => idx !== index),
-                        }));
+              {adminProfile.staffInvites.map((email, index) => {
+                const isLastField = index === adminProfile.staffInvites.length - 1;
+                const trimmedEmail = email.trim();
+                const isEmpty = !trimmedEmail;
+                const hasStateError = emailErrors[index];
+                const hasValidationError = !isEmpty && !isValidEmail(trimmedEmail);
+                const showError = hasStateError || hasValidationError;
+                const errorText = hasStateError 
+                  ? emailErrors[index] 
+                  : hasValidationError 
+                    ? 'Please enter a valid email address' 
+                    : undefined;
+
+                return (
+                  <div key={index} className="flex gap-2">
+                    <TextField
+                      ref={(el) => {
+                        emailInputRefs.current[index] = el;
                       }}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              ))}
+                      type="email"
+                      placeholder="team@sunrisepharmacy.com"
+                      value={email}
+                      state={showError ? 'error' : 'default'}
+                      errorText={errorText}
+                      onChange={(event) => {
+                        const newValue = event.target.value;
+                        const next = [...adminProfile.staffInvites];
+                        next[index] = newValue;
+                        onAdminChange((prev) => ({ ...prev, staffInvites: next }));
+
+                        // Clear error when user starts typing
+                        if (emailErrors[index]) {
+                          setEmailErrors((prev) => {
+                            const next = { ...prev };
+                            delete next[index];
+                            return next;
+                          });
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          const currentTrimmed = email.trim();
+
+                          // Validate email
+                          if (!currentTrimmed) {
+                            setEmailErrors((prev) => ({ ...prev, [index]: 'Email is required' }));
+                            return;
+                          }
+
+                          if (!isValidEmail(currentTrimmed)) {
+                            setEmailErrors((prev) => ({ ...prev, [index]: 'Please enter a valid email address' }));
+                            return;
+                          }
+
+                          // Clear any error for this field
+                          setEmailErrors((prev) => {
+                            const next = { ...prev };
+                            delete next[index];
+                            return next;
+                          });
+
+                          // If this is the last field, add a new one
+                          if (isLastField) {
+                            onAdminChange((prev) => ({ ...prev, staffInvites: [...prev.staffInvites, ''] }));
+                            // Focus the new field after it's rendered
+                            setTimeout(() => {
+                              const nextIndex = index + 1;
+                              emailInputRefs.current[nextIndex]?.focus();
+                            }, 0);
+                          } else {
+                            // Focus the next existing field
+                            emailInputRefs.current[index + 1]?.focus();
+                          }
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    {adminProfile.staffInvites.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          onAdminChange((prev) => {
+                            const newInvites = prev.staffInvites.filter((_, idx) => idx !== index);
+                            // Clean up refs - rebuild array to match new length
+                            emailInputRefs.current = emailInputRefs.current.filter((_, idx) => idx !== index);
+                            // Clean up errors - shift indices for fields after the removed one
+                            setEmailErrors((prev) => {
+                              const next: Record<number, string> = {};
+                              Object.keys(prev).forEach((key) => {
+                                const keyNum = Number(key);
+                                if (keyNum < index) {
+                                  next[keyNum] = prev[keyNum];
+                                } else if (keyNum > index) {
+                                  next[keyNum - 1] = prev[keyNum];
+                                }
+                                // keyNum === index is skipped (deleted)
+                              });
+                              return next;
+                            });
+                            return { ...prev, staffInvites: newInvites };
+                          });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
               <Button
                 type="button"
                 variant="outline"
