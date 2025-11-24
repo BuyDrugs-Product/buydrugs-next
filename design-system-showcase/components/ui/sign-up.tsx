@@ -236,7 +236,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
     currentPrescriptions: [] as string[],
     extraNotes: '',
     profilePhotoName: undefined as string | undefined,
-    shareHealthProfile: false,
+    shareHealthProfile: true,
   });
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
   const [healthDetailsOpen, setHealthDetailsOpen] = useState(false);
@@ -404,7 +404,9 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
 
     const payload: SignUpFormPayload = {
       role: selectedRole,
-      account,
+      account: isOAuthCompletion 
+        ? { ...account, password: '', confirmPassword: '' }
+        : account,
       profile,
       consents,
       providerProfile: isProvider
@@ -467,7 +469,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
     <div className="relative min-h-[calc(100dvh-4rem)] bg-(--surface-app) px-4 py-10 md:px-8">
       <BackgroundGlow />
       <div className="relative z-10 mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.5fr_1fr] lg:gap-12">
-        <div className="glass space-y-8 rounded-[2rem] p-6 shadow-(--shadow-card) md:p-10">
+        <div className="glass space-y-8 rounded-4xl p-6 shadow-(--shadow-card) md:p-10">
           <header className="mb-8 space-y-4">
             <p className="inline-flex items-center gap-2 rounded-full border border-lime-200 bg-lime-50/80 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.15em] text-lime-700 backdrop-blur-sm">
               <span className="h-2 w-2 rounded-full bg-lime-500 animate-pulse" />
@@ -681,7 +683,6 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
                   />
                   <Checkbox
                     checked={profile.shareHealthProfile ?? true}
-                    defaultChecked={true}
                     onChange={(event) =>
                       setProfile((prev) => ({ ...prev, shareHealthProfile: event.target.checked }))
                     }
@@ -789,7 +790,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
 
         <aside className="hidden lg:block">
           <div className="sticky top-8 space-y-6">
-            <div className="glass space-y-6 rounded-[2rem] p-8 shadow-(--shadow-card)">
+            <div className="glass space-y-6 rounded-4xl p-8 shadow-(--shadow-card)">
               <p className="text-lg font-bold text-(--text-primary)">Why customers choose BuyDrugs</p>
               <div className="space-y-5">
                 <BenefitHighlight
@@ -809,7 +810,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
                 />
               </div>
             </div>
-            <div className="glass rounded-[2rem] p-8 shadow-(--shadow-1) space-y-3 text-sm text-(--text-secondary)">
+            <div className="glass rounded-4xl p-8 shadow-(--shadow-1) space-y-3 text-sm text-(--text-secondary)">
               <p className="text-base font-bold text-(--text-primary)">Need help?</p>
               <p>Live care guides are available 7 days a week to walk you through setup.</p>
               <Link href="/design-system/sign-in-demo" className="inline-flex items-center gap-2 font-semibold text-(--action-primary) hover:underline">
@@ -894,7 +895,7 @@ const TagInput: React.FC<{
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-(--text-primary)">{label}</label>
-      <div className="min-h-[56px] rounded-[var(--radius-sm)] border border-(--border-default) bg-(--surface-elevated) px-3 py-2 text-sm text-(--text-primary) shadow-(--shadow-1) focus-within:border-(--border-focus) focus-within:ring-4 focus-within:ring-[rgba(89,71,255,0.18)]">
+      <div className="min-h-[56px] rounded-sm border border-(--border-default) bg-(--surface-elevated) px-3 py-2 text-sm text-(--text-primary) shadow-(--shadow-1) focus-within:border-(--border-focus) focus-within:ring-4 focus-within:ring-[rgba(89,71,255,0.18)]">
         <div className="flex flex-wrap items-center gap-2">
           {values.map((value) => (
             <Chip
@@ -993,20 +994,29 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                 value={adminProfile.businessEmail}
                 onChange={(event) => onAdminChange((prev) => ({ ...prev, businessEmail: event.target.value }))}
               />
-              <GooglePlacesAutocomplete
-                label="Pharmacy location"
-                placeholder="Start typing your pharmacy address..."
-                value={adminProfile.pharmacyAddress}
-                onChange={(address, placeDetails) => {
-                  onAdminChange((prev) => ({
-                    ...prev,
-                    pharmacyAddress: address,
-                    pharmacyLatitude: placeDetails?.latitude,
-                    pharmacyLongitude: placeDetails?.longitude,
-                  }));
-                }}
-                apiKey={process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY || ''}
-              />
+              {process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ? (
+                <GooglePlacesAutocomplete
+                  label="Pharmacy location"
+                  placeholder="Start typing your pharmacy address..."
+                  value={adminProfile.pharmacyAddress}
+                  onChange={(address, placeDetails) => {
+                    onAdminChange((prev) => ({
+                      ...prev,
+                      pharmacyAddress: address,
+                      pharmacyLatitude: placeDetails?.latitude,
+                      pharmacyLongitude: placeDetails?.longitude,
+                    }));
+                  }}
+                  apiKey={process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}
+                />
+              ) : (
+                <TextField
+                  label="Pharmacy location"
+                  placeholder="Enter your pharmacy address"
+                  value={adminProfile.pharmacyAddress}
+                  onChange={(event) => onAdminChange((prev) => ({ ...prev, pharmacyAddress: event.target.value }))}
+                />
+              )}
               <TextField
                 label="Website (optional)"
                 placeholder="https://yourpharmacy.com"
@@ -1278,7 +1288,7 @@ const InfoTooltip: React.FC<{ message: string }> = ({ message }) => (
       <Info className="h-4 w-4" />
       <span
         role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-56 -translate-x-1/2 rounded-xl border border-(--border-default) bg-[var(--surface-app-strong)] px-3 py-2 text-xs text-(--text-secondary) shadow-(--shadow-card) group-hover:block group-focus-within:block"
+        className="pointer-events-none absolute left-1/2 top-full z-20 hidden w-56 -translate-x-1/2 rounded-xl border border-(--border-default) bg-(--surface-app-strong) px-3 py-2 text-xs text-(--text-secondary) shadow-(--shadow-card) group-hover:block group-focus-within:block"
       >
         {message}
       </span>

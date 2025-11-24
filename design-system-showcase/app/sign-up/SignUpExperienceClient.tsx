@@ -72,7 +72,11 @@ export default function SignUpExperienceClient({
     try {
       // Store the active onboarding role in localStorage so we can retrieve it after OAuth redirect
       const activeRole = role || initialRole || 'customer';
-      localStorage.setItem('active_onboarding_role', activeRole);
+      try {
+        localStorage.setItem('active_onboarding_role', activeRole);
+      } catch (storageError) {
+        console.warn('Unable to access localStorage:', storageError);
+      }
       console.log('[SignUpExperienceClient] Storing active onboarding role:', {
         role,
         initialRole,
@@ -93,17 +97,24 @@ export default function SignUpExperienceClient({
         setError(error.message);
         setIsSubmitting(false);
         // Clean up localStorage on error
-        localStorage.removeItem('active_onboarding_role');
+        try {
+          localStorage.removeItem('active_onboarding_role');
+        } catch (storageError) {
+          console.warn('Unable to access localStorage:', storageError);
+        }
       }
       // OAuth will redirect, so no need to handle success state here
     } catch (oauthError) {
       console.error('OAuth exception:', oauthError);
       setError('Failed to initialize Google sign in.');
       setIsSubmitting(false);
-      localStorage.removeItem('active_onboarding_role');
+      try {
+        localStorage.removeItem('active_onboarding_role');
+      } catch (storageError) {
+        console.warn('Unable to access localStorage:', storageError);
+      }
     }
   };
-
   return (
     <SignUpExperience
       onSubmit={handleSubmit}
@@ -118,11 +129,15 @@ export default function SignUpExperienceClient({
       }}
       onRoleChange={(role) => {
         // Update localStorage when role changes
-        localStorage.setItem('active_onboarding_role', role);
-        console.log('[SignUpExperienceClient] Role changed, updated localStorage:', {
-          newRole: role,
-          timestamp: new Date().toISOString(),
-        });
+        try {
+          localStorage.setItem('active_onboarding_role', role);
+          console.log('[SignUpExperienceClient] Role changed, updated localStorage:', {
+            newRole: role,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (storageError) {
+          console.error('Unable to update localStorage when role changed:', storageError);
+        }
       }}
     />
   );

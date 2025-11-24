@@ -40,5 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-#Dev files
+# dev files
 .playwright-mcp

@@ -1,5 +1,7 @@
 'use client';
 
+/// <reference types="@types/google.maps" />
+
 import React, { useState, useRef, useEffect } from 'react';
 import { MapPin } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -13,6 +15,7 @@ interface GooglePlacesAutocompleteProps {
     required?: boolean;
     className?: string;
     apiKey: string;
+    onError?: (error: Error) => void;
 }
 
 declare global {
@@ -38,19 +41,29 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
     required = false,
     className,
     apiKey,
+    onError,
 }) => {
     const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
     const [showPredictions, setShowPredictions] = useState(false);
     const [isLoadingScript, setIsLoadingScript] = useState(true);
     const [scriptError, setScriptError] = useState<string | null>(null);
+    const [placeError, setPlaceError] = useState<string | null>(null);
+    const [focusedPredictionIndex, setFocusedPredictionIndex] = useState<number>(-1);
     const inputRef = useRef<HTMLInputElement>(null);
     const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
     // Removed placesService ref as we are migrating to google.maps.places.Place
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const scriptLoadHandlerRef = useRef<(() => void) | null>(null);
+    const existingScriptRef = useRef<HTMLScriptElement | null>(null);
+    const isMountedRef = useRef(true);
+    const requestIdRef = useRef(0);
+    const predictionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
     // Load Google Maps script
     useEffect(() => {
         if (typeof window === 'undefined') return;
+
+        isMountedRef.current = true;
 
         // Check if already loaded
         if (window.google?.maps?.places) {
@@ -59,13 +72,22 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
             return;
         }
 
+        // Create named handler function
+        const handleScriptLoad = () => {
+            if (!isMountedRef.current) return;
+            initializeServices();
+            setIsLoadingScript(false);
+        };
+
         // Check if script is already being loaded
-        const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+        const existingScript = document.querySelector('script[src*="maps.googleapis.com"]') as HTMLScriptElement | null;
         if (existingScript) {
-            existingScript.addEventListener('load', () => {
-                initializeServices();
-                setIsLoadingScript(false);
-            });
+            // Guard against duplicate listeners by checking if handler is already stored
+            if (!scriptLoadHandlerRef.current) {
+                scriptLoadHandlerRef.current = handleScriptLoad;
+                existingScriptRef.current = existingScript;
+                existingScript.addEventListener('load', handleScriptLoad);
+            }
             return;
         }
 
@@ -76,11 +98,13 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
         script.defer = true;
 
         script.onload = () => {
+            if (!isMountedRef.current) return;
             initializeServices();
             setIsLoadingScript(false);
         };
 
         script.onerror = () => {
+            if (!isMountedRef.current) return;
             setScriptError('Failed to load Google Maps. Please check your API key.');
             setIsLoadingScript(false);
         };
@@ -88,7 +112,13 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
         document.head.appendChild(script);
 
         return () => {
-            // Cleanup is tricky with Google Maps, so we'll leave the script loaded
+            isMountedRef.current = false;
+            // Remove event listener if it was attached to an existing script
+            if (scriptLoadHandlerRef.current && existingScriptRef.current) {
+                existingScriptRef.current.removeEventListener('load', scriptLoadHandlerRef.current);
+                scriptLoadHandlerRef.current = null;
+                existingScriptRef.current = null;
+            }
         };
     }, [apiKey]);
 
@@ -104,6 +134,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
         const handleClickOutside = (event: MouseEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
                 setShowPredictions(false);
+                setFocusedPredictionIndex(-1);
             }
         };
 
@@ -114,34 +145,64 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
         onChange(newValue);
+        
+        // Clear any previous place errors on new input
+        setPlaceError(null);
+
+        // Increment request ID to invalidate any pending callbacks
+        requestIdRef.current += 1;
+        const currentRequestId = requestIdRef.current;
 
         if (!newValue.trim() || !autocompleteService.current) {
+            setPredictions([]);
+            setShowPredictions(false);
+            setFocusedPredictionIndex(-1);
+            return;
+        }
+
+        // Capture the current service and requestId before making the async call
+        const service = autocompleteService.current;
+        if (!service) {
             setPredictions([]);
             setShowPredictions(false);
             return;
         }
 
         // Get predictions from Google Places API
-        autocompleteService.current.getPlacePredictions(
+        service.getPlacePredictions(
             {
                 input: newValue,
                 // types: ['address', 'establishment'], // Removed to allow both addresses and establishments
             },
             (results, status) => {
+                // Verify the service is still present and this request hasn't been superseded
+                if (!isMountedRef.current || !autocompleteService.current || requestIdRef.current !== currentRequestId) {
+                    // Request was superseded or component unmounted, ignore results
+                    return;
+                }
+
                 if (status === google.maps.places.PlacesServiceStatus.OK && results) {
                     setPredictions(results);
                     setShowPredictions(true);
                 } else {
                     setPredictions([]);
                     setShowPredictions(false);
+                    setFocusedPredictionIndex(-1);
                 }
             }
         );
     };
 
     const handlePredictionClick = async (prediction: google.maps.places.AutocompletePrediction) => {
+        // Clear any previous errors before attempting new selection
+        setPlaceError(null);
+        
         if (!window.google?.maps?.places?.Place) {
-            console.error('Google Maps Places library not loaded or Place class not available');
+            const error = new Error('Google Maps Places library not loaded or Place class not available');
+            console.error(error.message);
+            const errorMessage = 'Unable to load place details. Please try again.';
+            setPlaceError(errorMessage);
+            onError?.(error);
             return;
         }
 
@@ -178,11 +239,96 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
                 onChange(prediction.description, placeDetails);
                 setShowPredictions(false);
                 setPredictions([]);
+                setFocusedPredictionIndex(-1);
+                // Clear any errors on successful selection
+                setPlaceError(null);
             }
         } catch (error) {
             console.error('Error fetching place details:', error);
+            const errorMessage = 'Failed to load place details. Please try selecting again.';
+            setPlaceError(errorMessage);
+            
+            // Clear loading indicators and predictions on error
+            setShowPredictions(false);
+            setPredictions([]);
+            setFocusedPredictionIndex(-1);
+            
+            // Call optional error callback
+            if (error instanceof Error) {
+                onError?.(error);
+            } else {
+                onError?.(new Error(String(error)));
+            }
         }
     };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Only handle keyboard navigation when predictions are visible
+        if (!showPredictions || predictions.length === 0) {
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown': {
+                e.preventDefault();
+                setFocusedPredictionIndex((prev) => {
+                    const nextIndex = prev < predictions.length - 1 ? prev + 1 : 0;
+                    // Scroll the focused prediction into view
+                    setTimeout(() => {
+                        const focusedElement = predictionRefs.current[nextIndex];
+                        if (focusedElement) {
+                            focusedElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'nearest',
+                            });
+                        }
+                    }, 0);
+                    return nextIndex;
+                });
+                break;
+            }
+            case 'ArrowUp': {
+                e.preventDefault();
+                setFocusedPredictionIndex((prev) => {
+                    const nextIndex = prev > 0 ? prev - 1 : predictions.length - 1;
+                    // Scroll the focused prediction into view
+                    setTimeout(() => {
+                        const focusedElement = predictionRefs.current[nextIndex];
+                        if (focusedElement) {
+                            focusedElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'nearest',
+                            });
+                        }
+                    }, 0);
+                    return nextIndex;
+                });
+                break;
+            }
+            case 'Enter': {
+                e.preventDefault();
+                const indexToSelect = focusedPredictionIndex >= 0 ? focusedPredictionIndex : 0;
+                const predictionToSelect = predictions[indexToSelect];
+                if (predictionToSelect) {
+                    handlePredictionClick(predictionToSelect);
+                }
+                break;
+            }
+            case 'Escape': {
+                e.preventDefault();
+                setShowPredictions(false);
+                setFocusedPredictionIndex(-1);
+                break;
+            }
+        }
+    };
+
+    // Reset focused index when predictions change
+    useEffect(() => {
+        setFocusedPredictionIndex(-1);
+        // Reset refs array when predictions change
+        predictionRefs.current = new Array(predictions.length);
+    }, [predictions]);
 
     if (scriptError) {
         return (
@@ -215,7 +361,10 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
                     type="text"
                     value={value}
                     onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
                     onFocus={() => {
+                        // Clear errors when user focuses input for new attempt
+                        setPlaceError(null);
                         if (predictions.length > 0) {
                             setShowPredictions(true);
                         }
@@ -223,8 +372,16 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
                     placeholder={isLoadingScript ? 'Loading Google Maps...' : placeholder}
                     disabled={isLoadingScript}
                     required={required}
+                    aria-activedescendant={
+                        showPredictions && focusedPredictionIndex >= 0
+                            ? `prediction-${focusedPredictionIndex}`
+                            : undefined
+                    }
+                    aria-expanded={showPredictions}
+                    aria-haspopup="listbox"
+                    role="combobox"
                     className={cn(
-                        'h-11 w-full rounded-[var(--radius-sm)] border border-(--border-default) bg-(--surface-elevated) pl-10 pr-3 text-sm text-(--text-primary) shadow-(--shadow-1) transition-all',
+                        'h-11 w-full rounded-sm border border-(--border-default) bg-(--surface-elevated) pl-10 pr-3 text-sm text-(--text-primary) shadow-(--shadow-1) transition-all',
                         'placeholder:text-(--text-tertiary)',
                         'hover:border-(--border-strong)',
                         'focus:border-(--border-focus) focus:outline-none focus:ring-4 focus:ring-[rgba(89,71,255,0.18)]',
@@ -234,18 +391,28 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
 
                 {/* Predictions Dropdown */}
                 {showPredictions && predictions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-xl border border-(--border-default) bg-white shadow-(--shadow-card)">
-                        {predictions.map((prediction) => (
+                    <div
+                        role="listbox"
+                        className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-xl border border-(--border-default) bg-white shadow-(--shadow-card)"
+                    >
+                        {predictions.map((prediction, index) => (
                             <button
                                 key={prediction.place_id}
+                                id={`prediction-${index}`}
+                                ref={(el) => {
+                                    predictionRefs.current[index] = el;
+                                }}
                                 type="button"
+                                role="option"
+                                aria-selected={focusedPredictionIndex === index}
                                 onClick={() => handlePredictionClick(prediction)}
                                 className={cn(
                                     'flex w-full items-start gap-3 border-b border-(--border-subtle) px-4 py-3 text-left transition-colors last:border-b-0',
-                                    'hover:bg-(--surface-muted) focus:bg-(--surface-muted) focus:outline-none'
+                                    'hover:bg-(--state-hover) focus:bg-(--state-selected) focus:outline-none',
+                                    focusedPredictionIndex === index && 'bg-(--state-selected)'
                                 )}
                             >
-                                <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-(--text-tertiary)" />
+                                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-(--text-tertiary)" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-(--text-primary) truncate">
                                         {prediction.structured_formatting.main_text}
@@ -260,7 +427,10 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
                 )}
             </div>
 
-            {helperText && (
+            {placeError && (
+                <p className="text-xs text-red-600">{placeError}</p>
+            )}
+            {helperText && !placeError && (
                 <p className="text-xs text-(--text-secondary)">{helperText}</p>
             )}
         </div>

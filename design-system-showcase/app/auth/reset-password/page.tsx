@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/Button';
 import { TextField } from '@/components/TextField';
@@ -15,6 +15,15 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  useEffect(() => {
+    if (success) {
+      const timeoutId = setTimeout(() => {
+        router.push('/');
+      }, 2000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [success, router]);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
@@ -23,6 +32,13 @@ export default function ResetPasswordPage() {
     const formData = new FormData(event.currentTarget);
     const password = formData.get('password') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
+
+    // Ensure values exist
+    if (!password || !confirmPassword) {
+      setError('Please fill in all fields');
+      setIsLoading(false);
+      return;
+    }
 
     // Validation
     if (password !== confirmPassword) {
@@ -42,9 +58,6 @@ export default function ResetPasswordPage() {
 
       if (result.success) {
         setSuccess(true);
-        setTimeout(() => {
-          router.push('/');
-        }, 2000);
       } else {
         setError(result.error || 'Failed to update password');
       }

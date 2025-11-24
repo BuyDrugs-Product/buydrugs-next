@@ -7,6 +7,8 @@ export default function AuthCodeErrorPage() {
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
           <svg
             className="h-8 w-8 text-red-600"
+            aria-label="Error"
+            role="img"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

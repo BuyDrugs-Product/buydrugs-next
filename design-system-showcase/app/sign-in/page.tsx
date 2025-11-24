@@ -55,9 +55,8 @@ export default function SignIn() {
 
       if (data.session) {
         // Sign-in successful
-        // Wait a brief moment to ensure the session is fully set before redirecting
-        await new Promise(resolve => setTimeout(resolve, 100));
-        router.push('/');
+        setIsLoading(false); // Reset loading state before navigation
+        await router.push('/');
         router.refresh(); // Force a refresh to update server components
       }
     } catch (err) {
@@ -108,7 +107,7 @@ export default function SignIn() {
       {error && (
         <div className="fixed left-1/2 top-4 z-50 w-full max-w-md -translate-x-1/2 transform rounded-lg bg-red-50 p-4 shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <svg
                 className="h-5 w-5 text-red-600"
                 fill="none"
@@ -126,7 +125,7 @@ export default function SignIn() {
             <p className="text-sm text-red-800">{error}</p>
             <button
               onClick={() => setError(null)}
-              className="ml-auto flex-shrink-0 text-red-600 hover:text-red-800"
+              className="ml-auto shrink-0 text-red-600 hover:text-red-800"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

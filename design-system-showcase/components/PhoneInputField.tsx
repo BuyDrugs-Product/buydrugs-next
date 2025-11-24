@@ -5,13 +5,12 @@ import { cn } from '@/lib/cn';
 
 interface PhoneInputFieldProps {
   label?: string;
-  value: string;
+  value: string | undefined;
   onChange: (value: string | undefined) => void;
   required?: boolean;
   helperText?: string;
   className?: string;
 }
-
 export const PhoneInputField: React.FC<PhoneInputFieldProps> = ({
   label,
   value,
