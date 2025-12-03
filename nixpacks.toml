@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["nodejs-20_x"]
+
+[phases.install]
+cmds = [
+  "cd design-system-showcase",
+  "npm ci"
+]
+
+[phases.build]
+cmds = [
+  "cd design-system-showcase",
+  "npm run build"
+]
+
+[start]
+cmd = "cd design-system-showcase && npm run start"

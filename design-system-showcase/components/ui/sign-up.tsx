@@ -20,6 +20,7 @@ import {
   UserRound,
   Users,
   X,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/Button';
@@ -31,6 +32,10 @@ import { Checkbox } from '@/components/Checkbox';
 import { Chip } from '@/components/Chip';
 import { PhoneInputField } from '@/components/PhoneInputField';
 import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete';
+import { VerifiedFieldBadge } from '@/components/ui/VerifiedFieldBadge';
+import { verifyFacility, verifyPharmacist, verifyPharmtech } from '@/actions/ppb';
+import type { FacilityData } from '@/lib/types/facilities';
+import type { PharmacistData, PharmtechData } from '@/lib/types/pharmacists';
 
 export type RoleValue = 'customer' | 'pharmacy_admin' | 'pharmacy_staff';
 
@@ -42,16 +47,46 @@ export interface RoleOption {
 }
 
 export interface ProviderAdminProfile {
-  pharmacyName: string;
-  businessEmail: string;
-  pharmacyAddress: string;
+  // Country selection (determines verification template)
+  country: string; // Default: 'kenya'
+
+  // Substep 1: Pharmacy Business Details
+  ppbNumber: string; // Primary verification input
+  pharmacyName: string; // Auto-populated from facility verification
+  businessEmail: string; // Manual input
+  businessPhone: string; // Manual input
+  pharmacyAddress: string; // Manual input with Google Places
   pharmacyLatitude?: number;
   pharmacyLongitude?: number;
-  website?: string;
-  licenseNumber: string;
-  licenseIssuer: string;
-  licenseDocumentName?: string;
+  website?: string; // Optional manual input
+  licenseType: string; // Auto-populated from facility verification
+  licenseStatus: string; // Auto-populated from facility verification
+  licenseValidUntil?: string; // Auto-populated from facility verification
+
+  // Substep 2: Professional Verification
+  professionalLicenseNumber: string; // Professional's license for verification
+  cadre: 'pharmacist' | 'pharmtech' | ''; // Cadre selection
+  licenseIssuer: string; // Hardcoded to "PPB" for Kenya
+  role: 'superintendent' | 'manager' | 'owner' | ''; // Role selection
+  nationalIdFront?: string; // National ID front upload
+  nationalIdBack?: string; // National ID back upload
+  professionalPhotoUrl?: string; // Auto-populated from professional verification
+  professionalFullName?: string; // Auto-populated from professional verification
+  professionalStatus?: string; // Auto-populated from professional verification
+  professionalValidTill?: string; // Auto-populated from professional verification
+
+  // Substep 3: Team Setup (existing, no changes)
   staffInvites: string[];
+
+  // Verification state tracking
+  facilityVerified: boolean;
+  professionalVerified: boolean;
+  superintendentData?: {
+    name: string;
+    cadre: string;
+    enrollmentNumber: string;
+    licenseNumber: string;
+  };
 }
 
 export interface ProviderStaffProfile {
@@ -105,6 +140,7 @@ interface SignUpExperienceProps {
     email?: string;
     phone?: string;
   };
+  initialProviderProfile?: Partial<ProviderAdminProfile> | Partial<ProviderStaffProfile>; // For state persistence
   isOAuthCompletion?: boolean; // When true, hides password fields
   initialStep?: 'role' | 'profile' | 'health' | 'provider';
   onRoleChange?: (role: RoleValue) => void;
@@ -215,6 +251,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
   roleLocked = false,
   onReset,
   initialData,
+  initialProviderProfile,
   isOAuthCompletion = false,
   initialStep,
   onRoleChange,
@@ -244,25 +281,91 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
     savingsAlerts: true,
     refillReminders: true,
   });
-  const [adminProfile, setAdminProfile] = useState<ProviderAdminProfile>({
-    pharmacyName: '',
-    businessEmail: '',
-    pharmacyAddress: '',
-    website: '',
-    licenseNumber: '',
-    licenseIssuer: '',
-    licenseDocumentName: undefined,
-    staffInvites: [''],
+  const [adminProfile, setAdminProfile] = useState<ProviderAdminProfile>(() => {
+    const defaults: ProviderAdminProfile = {
+      // Country selection
+      country: 'kenya',
+
+      // Substep 1: Pharmacy Business Details
+      ppbNumber: '',
+      pharmacyName: '',
+      businessEmail: '',
+      businessPhone: '',
+      pharmacyAddress: '',
+      pharmacyLatitude: undefined,
+      pharmacyLongitude: undefined,
+      website: '',
+      licenseType: '',
+      licenseStatus: '',
+      licenseValidUntil: undefined,
+
+      // Substep 2: Professional Verification
+      professionalLicenseNumber: '',
+      cadre: '',
+      licenseIssuer: 'PPB', // Default to PPB for Kenya
+      role: '',
+      nationalIdFront: undefined,
+      nationalIdBack: undefined,
+      professionalPhotoUrl: undefined,
+      professionalFullName: undefined,
+      professionalStatus: undefined,
+      professionalValidTill: undefined,
+
+      // Substep 3: Team Setup
+      staffInvites: [''],
+
+      // Verification state
+      facilityVerified: false,
+      professionalVerified: false,
+      superintendentData: undefined,
+    };
+
+    // Merge with initialProviderProfile if it's for pharmacy_admin
+    if (initialProviderProfile && initialRole === 'pharmacy_admin') {
+      return { ...defaults, ...initialProviderProfile } as ProviderAdminProfile;
+    }
+
+    return defaults;
   });
-  const [staffProfile, setStaffProfile] = useState<ProviderStaffProfile>({
-    pharmacyCode: '',
-    pharmacyLocation: '',
-    employmentEmail: '',
-    managerName: '',
-    startDate: '',
+  const [staffProfile, setStaffProfile] = useState<ProviderStaffProfile>(() => {
+    const defaults: ProviderStaffProfile = {
+      pharmacyCode: '',
+      pharmacyLocation: '',
+      employmentEmail: '',
+      managerName: '',
+      startDate: '',
+    };
+
+    // Merge with initialProviderProfile if it's for pharmacy_staff
+    if (initialProviderProfile && initialRole === 'pharmacy_staff') {
+      return { ...defaults, ...initialProviderProfile } as ProviderStaffProfile;
+    }
+
+    return defaults;
   });
   const [activeStep, setActiveStep] = useState<SignupStepId>(initialStep || (roleLocked ? 'profile' : 'role'));
   const [completedSteps, setCompletedSteps] = useState<Set<SignupStepId>>(() => new Set());
+
+  // PPB Verification state tracking
+  const [facilityVerification, setFacilityVerification] = useState<{
+    loading: boolean;
+    error: string | null;
+    data: any | null;
+  }>({
+    loading: false,
+    error: null,
+    data: null,
+  });
+
+  const [professionalVerification, setProfessionalVerification] = useState<{
+    loading: boolean;
+    error: string | null;
+    data: any | null;
+  }>({
+    loading: false,
+    error: null,
+    data: null,
+  });
 
   useEffect(() => {
     if (initialRole) {
@@ -404,7 +507,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
 
     const payload: SignUpFormPayload = {
       role: selectedRole,
-      account: isOAuthCompletion 
+      account: isOAuthCompletion
         ? { ...account, password: '', confirmPassword: '' }
         : account,
       profile,
@@ -762,6 +865,10 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
                   staffProfile={staffProfile}
                   onStaffChange={setStaffProfile}
                   onLicenseUpload={handleLicenseUpload}
+                  facilityVerification={facilityVerification}
+                  setFacilityVerification={setFacilityVerification}
+                  professionalVerification={professionalVerification}
+                  setProfessionalVerification={setProfessionalVerification}
                 />
                 <div className="flex justify-between pt-8 border-t border-(--border-subtle)">
                   <Button type="button" variant="ghost" onClick={() => goToPreviousStep('provider')}>
@@ -942,6 +1049,27 @@ interface ProviderVerificationFlowProps {
   staffProfile: ProviderStaffProfile;
   onStaffChange: React.Dispatch<React.SetStateAction<ProviderStaffProfile>>;
   onLicenseUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  // PPB Verification state
+  facilityVerification: {
+    loading: boolean;
+    error: string | null;
+    data: any | null;
+  };
+  setFacilityVerification: React.Dispatch<React.SetStateAction<{
+    loading: boolean;
+    error: string | null;
+    data: any | null;
+  }>>;
+  professionalVerification: {
+    loading: boolean;
+    error: string | null;
+    data: any | null;
+  };
+  setProfessionalVerification: React.Dispatch<React.SetStateAction<{
+    loading: boolean;
+    error: string | null;
+    data: any | null;
+  }>>;
 }
 
 // Email validation function
@@ -958,6 +1086,10 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
   staffProfile,
   onStaffChange,
   onLicenseUpload,
+  facilityVerification,
+  setFacilityVerification,
+  professionalVerification,
+  setProfessionalVerification,
 }) => {
   const isAdmin = role === 'pharmacy_admin';
   const emailInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -965,6 +1097,181 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
 
   if (role === 'customer') {
     return null;
+  }
+
+  // Handler for facility verification (Substep 1)
+  const handleFacilityVerification = async () => {
+    if (!adminProfile.ppbNumber.trim()) {
+      setFacilityVerification({
+        loading: false,
+        error: 'Please enter a PPB number',
+        data: null,
+      });
+      return;
+    }
+
+    setFacilityVerification({ loading: true, error: null, data: null });
+
+    try {
+      const response = await verifyFacility({
+        ppb_number: adminProfile.ppbNumber,
+        use_cache: true,
+      });
+
+      if (response.success && response.data) {
+        // Auto-populate fields from API response
+        onAdminChange((prev) => ({
+          ...prev,
+          pharmacyName: response.data.facility_name,
+          licenseType: response.data.license_type,
+          licenseStatus: response.data.license_status,
+          licenseNumber: response.data.license_number, // Legacy field
+          facilityVerified: true,
+          superintendentData: response.data.superintendent
+            ? {
+              name: response.data.superintendent.name,
+              cadre: response.data.superintendent.cadre,
+              enrollmentNumber: response.data.superintendent.enrollment_number,
+              licenseNumber: response.data.superintendent.license_number,
+            }
+            : undefined,
+        }));
+
+        setFacilityVerification({
+          loading: false,
+          error: null,
+          data: response.data,
+        });
+      }
+    } catch (error) {
+      setFacilityVerification({
+        loading: false,
+        error: error instanceof Error ? error.message : 'Verification failed',
+        data: null,
+      });
+    }
+  };
+
+  // Handler for professional verification (Substep 2)
+  const handleProfessionalVerification = async () => {
+    if (!adminProfile.professionalLicenseNumber.trim()) {
+      setProfessionalVerification({
+        loading: false,
+        error: 'Please enter a license number',
+        data: null,
+      });
+      return;
+    }
+
+    if (!adminProfile.cadre) {
+      setProfessionalVerification({
+        loading: false,
+        error: 'Please select a cadre',
+        data: null,
+      });
+      return;
+    }
+
+    setProfessionalVerification({ loading: true, error: null, data: null });
+
+    try {
+      const response =
+        adminProfile.cadre === 'pharmacist'
+          ? await verifyPharmacist({
+            license_number: adminProfile.professionalLicenseNumber,
+            use_cache: true,
+          })
+          : await verifyPharmtech({
+            license_number: adminProfile.professionalLicenseNumber,
+            use_cache: true,
+          });
+
+      if (response.success && response.data) {
+        // Auto-populate professional data
+        onAdminChange((prev) => ({
+          ...prev,
+          professionalFullName: response.data.full_name,
+          professionalPhotoUrl: response.data.photo_url,
+          professionalStatus: response.data.status,
+          professionalValidTill: response.data.valid_till,
+          professionalVerified: true,
+        }));
+
+        setProfessionalVerification({
+          loading: false,
+          error: null,
+          data: response.data,
+        });
+      }
+    } catch (error) {
+      setProfessionalVerification({
+        loading: false,
+        error: error instanceof Error ? error.message : 'Verification failed',
+        data: null,
+      });
+    }
+  };
+
+  // Handler for National ID uploads
+  const handleNationalIdUpload = (side: 'front' | 'back') => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onAdminChange((prev) => ({
+        ...prev,
+        [side === 'front' ? 'nationalIdFront' : 'nationalIdBack']: file.name,
+      }));
+    }
+  };
+
+  // Handler to reset facility verification
+  const handleResetFacilityVerification = () => {
+    onAdminChange((prev) => ({
+      ...prev,
+      ppbNumber: '',
+      pharmacyName: '',
+      licenseType: '',
+      licenseStatus: '',
+      licenseValidUntil: '',
+      facilityVerified: false,
+      superintendentData: undefined,
+    }));
+    setFacilityVerification({ loading: false, error: null, data: null });
+  };
+
+  // Handler to reset professional verification
+  const handleResetProfessionalVerification = () => {
+    onAdminChange((prev) => ({
+      ...prev,
+      professionalLicenseNumber: '',
+      cadre: '',
+      professionalPhotoUrl: undefined,
+      professionalFullName: undefined,
+      professionalStatus: undefined,
+      professionalValidTill: undefined,
+      professionalVerified: false,
+    }));
+    setProfessionalVerification({ loading: false, error: null, data: null });
+  };
+
+  // Check if superintendent role matches facility superintendent
+  const superintendentMismatch =
+    adminProfile.role === 'superintendent' &&
+    adminProfile.facilityVerified &&
+    adminProfile.professionalVerified &&
+    adminProfile.superintendentData &&
+    adminProfile.superintendentData.licenseNumber && // Only check if license number exists
+    adminProfile.professionalLicenseNumber !== adminProfile.superintendentData.licenseNumber;
+
+  // Debug logging for superintendent validation
+  if (adminProfile.role === 'superintendent' && adminProfile.superintendentData) {
+    console.log('Superintendent Validation:', {
+      enteredLicense: adminProfile.professionalLicenseNumber,
+      superintendentLicense: adminProfile.superintendentData.licenseNumber,
+      match: adminProfile.professionalLicenseNumber === adminProfile.superintendentData.licenseNumber,
+      superintendentData: adminProfile.superintendentData,
+    });
   }
 
   return (
@@ -981,91 +1288,478 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
         <InfoTooltip message="We keep your pharmacy credentials safe and only share them with our verification team." />
       </div>
 
+      {/* Country Selector (top of provider flow) */}
+      <div className="rounded-xl border border-(--border-subtle) bg-white/50 p-4">
+        <SelectField
+          label="Country"
+          value={adminProfile.country}
+          onChange={(event) => onAdminChange((prev) => ({ ...prev, country: event.target.value }))}
+          options={[
+            { value: 'kenya', label: 'Kenya' },
+            // Future countries can be added here
+          ]}
+          helperText="Determines which verification system to use"
+        />
+      </div>
+
       {isAdmin ? (
         <div className="space-y-4">
+          {/* Substep 1: Pharmacy Business Details */}
           <ProviderStepCard
             step={1}
             title={adminStepMeta[0].title}
             description={adminStepMeta[0].description}
             icon={<Store className="h-4 w-4" />}
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              {/* PPB Number Input */}
               <TextField
-                label="Pharmacy name"
-                placeholder="Sunrise Wellness Pharmacy"
-                value={adminProfile.pharmacyName}
-                onChange={(event) => onAdminChange((prev) => ({ ...prev, pharmacyName: event.target.value }))}
+                label="PPB Number"
+                placeholder="PPB/C/9222"
+                value={adminProfile.ppbNumber}
+                onChange={(event) =>
+                  onAdminChange((prev) => ({ ...prev, ppbNumber: event.target.value }))
+                }
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !adminProfile.facilityVerified) {
+                    event.preventDefault();
+                    handleFacilityVerification();
+                  }
+                }}
+                helperText="Enter your pharmacy's PPB registration number"
+                disabled={adminProfile.facilityVerified}
+                className={cn(
+                  adminProfile.facilityVerified && 'bg-emerald-50/50'
+                )}
               />
-              <TextField
-                label="Business email"
-                type="email"
-                placeholder="owner@sunrisewellness.com"
-                value={adminProfile.businessEmail}
-                onChange={(event) => onAdminChange((prev) => ({ ...prev, businessEmail: event.target.value }))}
-              />
-              {process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ? (
-                <GooglePlacesAutocomplete
-                  label="Pharmacy location"
-                  placeholder="Start typing your pharmacy address..."
-                  value={adminProfile.pharmacyAddress}
-                  onChange={(address, placeDetails) => {
-                    onAdminChange((prev) => ({
-                      ...prev,
-                      pharmacyAddress: address,
-                      pharmacyLatitude: placeDetails?.latitude,
-                      pharmacyLongitude: placeDetails?.longitude,
-                    }));
-                  }}
-                  apiKey={process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}
-                />
-              ) : (
-                <TextField
-                  label="Pharmacy location"
-                  placeholder="Enter your pharmacy address"
-                  value={adminProfile.pharmacyAddress}
-                  onChange={(event) => onAdminChange((prev) => ({ ...prev, pharmacyAddress: event.target.value }))}
-                />
+
+              {/* Verify Pharmacy Button */}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={handleFacilityVerification}
+                  disabled={facilityVerification.loading || adminProfile.facilityVerified}
+                  className="flex-1"
+                >
+                  {facilityVerification.loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying Pharmacy...
+                    </>
+                  ) : adminProfile.facilityVerified ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Pharmacy Verified
+                    </>
+                  ) : (
+                    'Verify Pharmacy'
+                  )}
+                </Button>
+                {adminProfile.facilityVerified && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleResetFacilityVerification}
+                    title="Clear and re-verify"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Facility Verification Error */}
+              {facilityVerification.error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <p className="font-medium">Verification Failed</p>
+                  <p>{facilityVerification.error}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleFacilityVerification}
+                    className="mt-2 text-red-700 hover:text-red-800"
+                  >
+                    Try Again
+                  </Button>
+                </div>
               )}
-              <TextField
-                label="Website (optional)"
-                placeholder="https://yourpharmacy.com"
-                value={adminProfile.website}
-                onChange={(event) => onAdminChange((prev) => ({ ...prev, website: event.target.value }))}
-                leadingIcon={<Globe className="h-4 w-4" />}
-              />
+
+              {/* Auto-populated Verified Fields */}
+              {adminProfile.facilityVerified && (
+                <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50/30 p-4">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    <p className="text-sm font-semibold text-emerald-900">
+                      Pharmacy Details Verified
+                    </p>
+                    {facilityVerification.data && (
+                      <VerifiedFieldBadge
+                        verified={true}
+                        processingTime={facilityVerification.data.processing_time_ms}
+                      />
+                    )}
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-medium text-(--text-secondary)">
+                        Pharmacy Name
+                      </label>
+                      <p className="mt-1 text-sm font-semibold text-(--text-primary)">
+                        {adminProfile.pharmacyName}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-(--text-secondary)">
+                        License Type
+                      </label>
+                      <p className="mt-1 text-sm font-semibold text-(--text-primary)">
+                        {adminProfile.licenseType}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-(--text-secondary)">
+                        License Status
+                      </label>
+                      <p className="mt-1 text-sm font-semibold text-(--text-primary)">
+                        {adminProfile.licenseStatus}
+                      </p>
+                    </div>
+                    {adminProfile.superintendentData && (
+                      <div>
+                        <label className="text-xs font-medium text-(--text-secondary)">
+                          Superintendent
+                        </label>
+                        <p className="mt-1 text-sm font-semibold text-(--text-primary)">
+                          {adminProfile.superintendentData.name}
+                        </p>
+                        <p className="text-xs text-(--text-tertiary)">
+                          {adminProfile.superintendentData.cadre} ·{' '}
+                          {adminProfile.superintendentData.licenseNumber}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Input Fields */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  label="Business Email"
+                  type="email"
+                  placeholder="owner@sunrisewellness.com"
+                  value={adminProfile.businessEmail}
+                  onChange={(event) =>
+                    onAdminChange((prev) => ({ ...prev, businessEmail: event.target.value }))
+                  }
+                  required
+                />
+                <PhoneInputField
+                  label="Business Phone"
+                  value={adminProfile.businessPhone}
+                  onChange={(value) =>
+                    onAdminChange((prev) => ({ ...prev, businessPhone: value || '' }))
+                  }
+                  required
+                />
+                {process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY ? (
+                  <GooglePlacesAutocomplete
+                    label="Pharmacy Location"
+                    placeholder="Start typing your pharmacy address..."
+                    value={adminProfile.pharmacyAddress}
+                    onChange={(address, placeDetails) => {
+                      onAdminChange((prev) => ({
+                        ...prev,
+                        pharmacyAddress: address,
+                        pharmacyLatitude: placeDetails?.latitude,
+                        pharmacyLongitude: placeDetails?.longitude,
+                      }));
+                    }}
+                    apiKey={process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}
+                  />
+                ) : (
+                  <TextField
+                    label="Pharmacy Location"
+                    placeholder="Enter your pharmacy address"
+                    value={adminProfile.pharmacyAddress}
+                    onChange={(event) =>
+                      onAdminChange((prev) => ({ ...prev, pharmacyAddress: event.target.value }))
+                    }
+                  />
+                )}
+                <TextField
+                  label="Website (optional)"
+                  placeholder="https://yourpharmacy.com"
+                  value={adminProfile.website}
+                  onChange={(event) =>
+                    onAdminChange((prev) => ({ ...prev, website: event.target.value }))
+                  }
+                  leadingIcon={<Globe className="h-4 w-4" />}
+                />
+              </div>
             </div>
           </ProviderStepCard>
 
+          {/* Substep 2: Professional Verification */}
           <ProviderStepCard
             step={2}
             title={adminStepMeta[1].title}
             description={adminStepMeta[1].description}
             icon={<ShieldCheck className="h-4 w-4" />}
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <TextField
-                label="License number"
-                placeholder="AB-123456"
-                value={adminProfile.licenseNumber}
-                onChange={(event) => onAdminChange((prev) => ({ ...prev, licenseNumber: event.target.value }))}
-              />
-              <TextField
-                label="Issuing authority"
-                placeholder="State Pharmacy Board"
-                value={adminProfile.licenseIssuer}
-                onChange={(event) => onAdminChange((prev) => ({ ...prev, licenseIssuer: event.target.value }))}
-              />
+            <div className="space-y-4">
+              {/* License Number and Cadre Selection */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  label="Professional License Number"
+                  placeholder="P2025D00463"
+                  value={adminProfile.professionalLicenseNumber}
+                  onChange={(event) =>
+                    onAdminChange((prev) => ({
+                      ...prev,
+                      professionalLicenseNumber: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !adminProfile.professionalVerified) {
+                      event.preventDefault();
+                      handleProfessionalVerification();
+                    }
+                  }}
+                  disabled={adminProfile.professionalVerified}
+                  className={cn(
+                    adminProfile.professionalVerified && 'bg-emerald-50/50'
+                  )}
+                />
+                <SelectField
+                  label="Cadre"
+                  value={adminProfile.cadre}
+                  onChange={(event) =>
+                    onAdminChange((prev) => ({
+                      ...prev,
+                      cadre: event.target.value as 'pharmacist' | 'pharmtech' | '',
+                    }))
+                  }
+                  options={[
+                    { value: '', label: 'Select Cadre' },
+                    { value: 'pharmacist', label: 'Pharmacist' },
+                    { value: 'pharmtech', label: 'Pharmaceutical Technician' },
+                  ]}
+                  disabled={adminProfile.professionalVerified}
+                />
+              </div>
+
+              {/* Verify Professional Button */}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={handleProfessionalVerification}
+                  disabled={professionalVerification.loading || adminProfile.professionalVerified}
+                  className="flex-1"
+                >
+                  {professionalVerification.loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying Professional License...
+                    </>
+                  ) : adminProfile.professionalVerified ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Professional License Verified
+                    </>
+                  ) : (
+                    'Verify Professional License'
+                  )}
+                </Button>
+                {adminProfile.professionalVerified && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleResetProfessionalVerification}
+                    title="Clear and re-verify"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Professional Verification Error */}
+              {professionalVerification.error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <p className="font-medium">Verification Failed</p>
+                  <p>{professionalVerification.error}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleProfessionalVerification}
+                    className="mt-2 text-red-700 hover:text-red-800"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              )}
+
+              {/* Professional Data Display */}
+              {adminProfile.professionalVerified && professionalVerification.data && (
+                <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50/30 p-4">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                    <p className="text-sm font-semibold text-emerald-900">
+                      Professional Credentials Verified
+                    </p>
+                    <VerifiedFieldBadge
+                      verified={true}
+                      processingTime={professionalVerification.data.processing_time_ms}
+                    />
+                  </div>
+
+                  <div className="flex gap-4">
+                    {adminProfile.professionalPhotoUrl && (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={adminProfile.professionalPhotoUrl}
+                          alt={adminProfile.professionalFullName || 'Professional'}
+                          className="h-24 w-24 rounded-lg object-cover ring-2 ring-emerald-200"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <div>
+                        <label className="text-xs font-medium text-(--text-secondary)">
+                          Full Name
+                        </label>
+                        <p className="text-sm font-semibold text-(--text-primary)">
+                          {adminProfile.professionalFullName}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-medium text-(--text-secondary)">
+                            Status
+                          </label>
+                          <p className="text-sm font-semibold text-(--text-primary)">
+                            {adminProfile.professionalStatus}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-(--text-secondary)">
+                            Valid Until
+                          </label>
+                          <p className="text-sm font-semibold text-(--text-primary)">
+                            {adminProfile.professionalValidTill}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Issuing Authority & Role Selection */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  label="Issuing Authority"
+                  value={adminProfile.licenseIssuer}
+                  disabled
+                  helperText="Kenya-specific authority"
+                  className="bg-gray-50"
+                />
+                <SelectField
+                  label="Your Role"
+                  value={adminProfile.role}
+                  onChange={(event) =>
+                    onAdminChange((prev) => ({
+                      ...prev,
+                      role: event.target.value as 'superintendent' | 'manager' | 'owner' | '',
+                    }))
+                  }
+                  options={[
+                    { value: '', label: 'Select Role' },
+                    { value: 'superintendent', label: 'Superintendent' },
+                    { value: 'manager', label: 'Manager' },
+                    { value: 'owner', label: 'Owner' },
+                  ]}
+                />
+              </div>
+
+              {/* Superintendent Data Missing Warning */}
+              {adminProfile.role === 'superintendent' &&
+                adminProfile.facilityVerified &&
+                adminProfile.superintendentData &&
+                !adminProfile.superintendentData.licenseNumber && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    <p className="font-medium flex items-center gap-2">
+                      <Info className="h-4 w-4" />
+                      Superintendent Data Update Required
+                    </p>
+                    <p className="mt-1">
+                      The facility verification data needs to be refreshed. Please click the X button next to
+                      "Pharmacy Verified" in Substep 1 above, then re-verify your pharmacy to fetch the
+                      updated superintendent information.
+                    </p>
+                  </div>
+                )}
+
+              {/* Superintendent Mismatch Warning */}
+              {superintendentMismatch && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <p className="font-medium flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    License Mismatch Detected
+                  </p>
+                  <p className="mt-1">
+                    Your professional license number ({adminProfile.professionalLicenseNumber}) doesn't match the superintendent license
+                    number ({adminProfile.superintendentData?.licenseNumber}) from the facility verification. Please verify that you selected the
+                    correct role or contact support if you believe this is an error.
+                  </p>
+                </div>
+              )}
+
+              {/* National ID Upload */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-(--text-primary)">
+                    National ID (Front)
+                  </label>
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-(--border-default) px-4 py-6 text-center text-sm text-(--text-secondary) transition-colors hover:border-(--action-primary) hover:bg-white">
+                    <Upload className="mb-2 h-6 w-6 text-(--text-tertiary)" />
+                    <span className="font-semibold text-(--action-primary)">
+                      {adminProfile.nationalIdFront || 'Upload Front Side'}
+                    </span>
+                    <span className="text-xs text-(--text-tertiary)">PNG or JPG</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={handleNationalIdUpload('front')}
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-(--text-primary)">
+                    National ID (Back)
+                  </label>
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-(--border-default) px-4 py-6 text-center text-sm text-(--text-secondary) transition-colors hover:border-(--action-primary) hover:bg-white">
+                    <Upload className="mb-2 h-6 w-6 text-(--text-tertiary)" />
+                    <span className="font-semibold text-(--action-primary)">
+                      {adminProfile.nationalIdBack || 'Upload Back Side'}
+                    </span>
+                    <span className="text-xs text-(--text-tertiary)">PNG or JPG</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={handleNationalIdUpload('back')}
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
-            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-(--border-default) px-4 py-6 text-center text-sm text-(--text-secondary)">
-              <Upload className="mb-2 h-6 w-6 text-(--text-tertiary)" />
-              <span className="font-semibold text-(--action-primary)">
-                {adminProfile.licenseDocumentName ?? 'Upload license document'}
-              </span>
-              <span className="text-xs text-(--text-tertiary)">PDF, PNG, or JPG</span>
-              <input type="file" className="sr-only" onChange={onLicenseUpload} />
-            </label>
           </ProviderStepCard>
 
+          {/* Substep 3: Team Setup (existing implementation) */}
           <ProviderStepCard
             step={3}
             title={adminStepMeta[2].title}
@@ -1073,7 +1767,7 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
             icon={<Users className="h-4 w-4" />}
           >
             <p className="text-sm text-(--text-secondary)">
-              Invite teammates so they can assist with prescriptions and customer care once you’re verified.
+              Invite teammates so they can assist with prescriptions and customer care once you're verified.
             </p>
             <div className="space-y-3">
               {adminProfile.staffInvites.map((email, index) => {
@@ -1083,10 +1777,10 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                 const hasStateError = emailErrors[index];
                 const hasValidationError = !isEmpty && !isValidEmail(trimmedEmail);
                 const showError = hasStateError || hasValidationError;
-                const errorText = hasStateError 
-                  ? emailErrors[index] 
-                  : hasValidationError 
-                    ? 'Please enter a valid email address' 
+                const errorText = hasStateError
+                  ? emailErrors[index]
+                  : hasValidationError
+                    ? 'Please enter a valid email address'
                     : undefined;
 
                 return (
@@ -1106,7 +1800,6 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                         next[index] = newValue;
                         onAdminChange((prev) => ({ ...prev, staffInvites: next }));
 
-                        // Clear error when user starts typing
                         if (emailErrors[index]) {
                           setEmailErrors((prev) => {
                             const next = { ...prev };
@@ -1120,34 +1813,35 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                           event.preventDefault();
                           const currentTrimmed = email.trim();
 
-                          // Validate email
                           if (!currentTrimmed) {
                             setEmailErrors((prev) => ({ ...prev, [index]: 'Email is required' }));
                             return;
                           }
 
                           if (!isValidEmail(currentTrimmed)) {
-                            setEmailErrors((prev) => ({ ...prev, [index]: 'Please enter a valid email address' }));
+                            setEmailErrors((prev) => ({
+                              ...prev,
+                              [index]: 'Please enter a valid email address',
+                            }));
                             return;
                           }
 
-                          // Clear any error for this field
                           setEmailErrors((prev) => {
                             const next = { ...prev };
                             delete next[index];
                             return next;
                           });
 
-                          // If this is the last field, add a new one
                           if (isLastField) {
-                            onAdminChange((prev) => ({ ...prev, staffInvites: [...prev.staffInvites, ''] }));
-                            // Focus the new field after it's rendered
+                            onAdminChange((prev) => ({
+                              ...prev,
+                              staffInvites: [...prev.staffInvites, ''],
+                            }));
                             setTimeout(() => {
                               const nextIndex = index + 1;
                               emailInputRefs.current[nextIndex]?.focus();
                             }, 0);
                           } else {
-                            // Focus the next existing field
                             emailInputRefs.current[index + 1]?.focus();
                           }
                         }
@@ -1161,9 +1855,9 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                         onClick={() => {
                           onAdminChange((prev) => {
                             const newInvites = prev.staffInvites.filter((_, idx) => idx !== index);
-                            // Clean up refs - rebuild array to match new length
-                            emailInputRefs.current = emailInputRefs.current.filter((_, idx) => idx !== index);
-                            // Clean up errors - shift indices for fields after the removed one
+                            emailInputRefs.current = emailInputRefs.current.filter(
+                              (_, idx) => idx !== index
+                            );
                             setEmailErrors((prev) => {
                               const next: Record<number, string> = {};
                               Object.keys(prev).forEach((key) => {
@@ -1173,7 +1867,6 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                                 } else if (keyNum > index) {
                                   next[keyNum - 1] = prev[keyNum];
                                 }
-                                // keyNum === index is skipped (deleted)
                               });
                               return next;
                             });
@@ -1201,6 +1894,7 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
           </ProviderStepCard>
         </div>
       ) : (
+        // Pharmacy Staff Flow (no changes)
         <div className="space-y-4">
           <ProviderStepCard
             step={1}
@@ -1212,13 +1906,17 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
               label="Pharmacy invite code or name"
               placeholder="Enter code from your admin"
               value={staffProfile.pharmacyCode}
-              onChange={(event) => onStaffChange((prev) => ({ ...prev, pharmacyCode: event.target.value }))}
+              onChange={(event) =>
+                onStaffChange((prev) => ({ ...prev, pharmacyCode: event.target.value }))
+              }
             />
             <TextField
               label="City or neighborhood"
               placeholder="Where do you serve customers?"
               value={staffProfile.pharmacyLocation}
-              onChange={(event) => onStaffChange((prev) => ({ ...prev, pharmacyLocation: event.target.value }))}
+              onChange={(event) =>
+                onStaffChange((prev) => ({ ...prev, pharmacyLocation: event.target.value }))
+              }
               className="mt-3"
               leadingIcon={<Globe className="h-4 w-4" />}
             />
@@ -1236,20 +1934,26 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                 type="email"
                 placeholder="you@pharmacy.com"
                 value={staffProfile.employmentEmail}
-                onChange={(event) => onStaffChange((prev) => ({ ...prev, employmentEmail: event.target.value }))}
+                onChange={(event) =>
+                  onStaffChange((prev) => ({ ...prev, employmentEmail: event.target.value }))
+                }
                 leadingIcon={<Mail className="h-4 w-4" />}
               />
               <TextField
                 label="Manager name"
                 placeholder="Taylor Gomez"
                 value={staffProfile.managerName}
-                onChange={(event) => onStaffChange((prev) => ({ ...prev, managerName: event.target.value }))}
+                onChange={(event) =>
+                  onStaffChange((prev) => ({ ...prev, managerName: event.target.value }))
+                }
               />
               <TextField
                 label="Start date"
                 type="date"
                 value={staffProfile.startDate}
-                onChange={(event) => onStaffChange((prev) => ({ ...prev, startDate: event.target.value }))}
+                onChange={(event) =>
+                  onStaffChange((prev) => ({ ...prev, startDate: event.target.value }))
+                }
                 leadingIcon={<Calendar className="h-4 w-4" />}
               />
             </div>
@@ -1259,6 +1963,8 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
     </section>
   );
 };
+
+
 
 const ProviderStepCard: React.FC<{
   step: number;

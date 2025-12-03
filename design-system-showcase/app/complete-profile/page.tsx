@@ -30,10 +30,10 @@ export default function CompleteProfilePage() {
             const activeOnboardingRole = localStorage.getItem('active_onboarding_role');
             const legacyStoredRole = localStorage.getItem('signup_role'); // Support legacy key
             const metadataRole = user.user_metadata?.experience_role;
-            
+
             // Determine the active role: prioritize localStorage, then metadata, then default to customer
             const activeRole = (activeOnboardingRole || legacyStoredRole || metadataRole || 'customer') as RoleValue;
-            
+
             console.log('[CompleteProfile] Role detection:', {
                 activeOnboardingRole,
                 legacyStoredRole,
@@ -77,9 +77,15 @@ export default function CompleteProfilePage() {
             }
 
             setRole(activeRole);
+
+            // Extract provider profile data from metadata if it exists
+            const providerProfile = user.user_metadata?.provider_profile;
+
             setInitialData({
                 fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
                 email: user.email || '',
+                // Pass provider profile if available for resumption
+                providerProfile: providerProfile || null,
             });
             setIsLoading(false);
         };
@@ -209,6 +215,7 @@ export default function CompleteProfilePage() {
             error={error}
             onSubmit={handleSubmit}
             initialData={initialData}
+            initialProviderProfile={initialData?.providerProfile}
             isOAuthCompletion={true}
             onRoleChange={handleRoleChange}
         />
