@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+/* Animation Keyframes */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px);
+  }
+}
+
+@keyframes slideRightIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateX(0px);
+  }
+}
+
+@keyframes testimonialIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+  }
+}
+
+@utility glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+@utility glass-dark {
+  background: rgba(16, 24, 40, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@theme {
+  /* Color Palette */
+  --color-white: #ffffff;
+  --color-black: #0B0F14;
+  --color-lime-25: #FAFDEA;
+  --color-lime-50: #F7FBE6;
+  --color-lime-75: #F4F9D6;
+  --color-lime-100: #F0F9C9;
+  --color-lime-200: #E6F48D;
+  --color-violet-500: #6B5CFF;
+  --color-violet-600: #5947FF;
+  --color-violet-650: #4E3DFF;
+  --color-violet-700: #4233EB;
+  --color-green-25: #EAF8F1;
+  --color-green-500: #12B76A;
+  --color-green-600: #039855;
+  --color-red-500: #F04438;
+  --color-red-600: #D92D20;
+  --color-buy-drugs-500: #F79009;
+  --color-blue-500: #2E90FA;
+  --color-neutral-25: #FCFCFD;
+  --color-neutral-50: #F8FAFC;
+  --color-neutral-100: #F2F4F7;
+  --color-neutral-200: #E4E7EC;
+  --color-neutral-300: #D0D5DD;
+  --color-neutral-400: #98A2B3;
+  --color-neutral-500: #667085;
+  --color-neutral-600: #475467;
+  --color-neutral-700: #344054;
+  --color-neutral-800: #1D2939;
+  --color-neutral-900: #101828;
+
+  /* Semantic Surfaces */
+  --surface-app: var(--color-lime-50);
+  --surface-app-strong: var(--color-lime-100);
+  --surface-muted: var(--color-neutral-25);
+  --surface-elevated: var(--color-white);
+  --surface-overlay: rgba(16, 24, 40, 0.48);
+
+  /* Semantic Text */
+  --text-primary: var(--color-neutral-900);
+  --text-secondary: var(--color-neutral-600);
+  --text-tertiary: var(--color-neutral-500);
+  --text-inverse: var(--color-white);
+  --text-brand: var(--color-violet-600);
+  --text-success: var(--color-green-600);
+  --text-danger: var(--color-red-500);
+
+  /* Semantic Actions */
+  --action-primary: var(--color-violet-600);
+  --action-primary-hover: var(--color-violet-650);
+  --action-primary-active: #3E2FD4;
+  --action-on-primary: var(--color-white);
+  --action-secondary: var(--color-neutral-100);
+  --action-secondary-hover: var(--color-neutral-200);
+  --action-secondary-active: var(--color-neutral-300);
+  --action-outline: rgba(89, 71, 255, 0.12);
+  --action-outline-border: rgba(89, 71, 255, 0.45);
+  --action-ghost-hover: rgba(89, 71, 255, 0.08);
+  --action-destructive: var(--color-red-500);
+  --action-destructive-hover: var(--color-red-600);
+  --action-destructive-active: #B42318;
+  --action-on-destructive: var(--color-white);
+  --action-warning: var(--color-buy-drugs-500);
+  --action-info: var(--color-blue-500);
+
+  /* Borders */
+  --border-subtle: var(--color-neutral-200);
+  --border-default: var(--color-neutral-200);
+  --border-strong: var(--color-neutral-300);
+  --border-focus: var(--color-violet-600);
+
+  /* States */
+  --state-hover: rgba(15, 23, 42, 0.04);
+  --state-active: rgba(15, 23, 42, 0.08);
+  --state-selected: rgba(89, 71, 255, 0.10);
+  --state-disabled-opacity: 0.45;
+  --state-focus-ring: 0 0 0 2px rgba(89, 71, 255, 0.4);
+
+  /* Spacing Scale (4pt grid + hairline) */
+  --space-hairline: 2px;
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 56px;
+  --space-11: 64px;
+
+  /* Radii */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+  --radius-pill: 9999px;
+
+  /* Elevation */
+  --shadow-1: 0 2px 6px rgba(16, 24, 40, 0.08);
+  --shadow-2: 0 6px 18px rgba(16, 24, 40, 0.10);
+  --shadow-card: 0 10px 30px rgba(16, 24, 40, 0.12);
+  --shadow-overlay: 0 20px 48px rgba(16, 24, 40, 0.30);
+
+  /* Typography */
+  --font-family-sans: Inter, SF Pro Text, Segoe UI, Helvetica Neue, Arial, system-ui, sans-serif;
+
+  /* Shadcn-style aliases for SignIn component */
+  --background: var(--surface-elevated);
+  --foreground: var(--text-primary);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--text-tertiary);
+  --border: var(--border-default);
+  --primary: var(--action-primary);
+  --primary-foreground: var(--action-on-primary);
+  --accent: var(--surface-app-strong);
+}
+
+@layer base {
+  body {
+    font-family: var(--font-family-sans);
+    background: var(--surface-app);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    color-scheme: light;
+  }
+
+  :root {
+    background-color: var(--surface-app);
+    color: var(--text-primary);
+  }
+
+  /* Animation utilities */
+  .animate-element {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(8px);
+    animation: fadeSlideIn 0.6s ease-out forwards;
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .animate-delay-600 {
+    animation-delay: 600ms;
+  }
+}
