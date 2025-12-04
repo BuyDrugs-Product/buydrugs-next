@@ -163,10 +163,10 @@ export const Calendar: React.FC<CalendarProps> = ({
           aria-label="Previous month"
         />
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h3 className="text-lg font-semibold text-(--text-primary)">
             {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </h3>
-          <p className="text-xs text-[var(--text-tertiary)]">
+          <p className="text-xs text-(--text-tertiary)">
             {selectionMode === "range"
               ? range.start && range.end
                 ? `${formatDate(range.start)} – ${formatDate(range.end)}`
@@ -185,7 +185,7 @@ export const Calendar: React.FC<CalendarProps> = ({
         />
       </div>
 
-      <div className="mb-3 grid grid-cols-7 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--text-tertiary)]">
+      <div className="mb-3 grid grid-cols-7 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-(--text-tertiary)">
         {dayNames.map((day) => (
           <span key={day}>{day}</span>
         ))}
@@ -213,14 +213,14 @@ export const Calendar: React.FC<CalendarProps> = ({
               key={day.toISOString()}
               onClick={() => handleDayClick(day)}
               className={cn(
-                "relative flex h-10 w-10 items-center justify-center rounded-[12px] text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-elevated)]",
+                "relative flex h-10 w-10 items-center justify-center rounded-sm text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface-elevated)",
                 selected
-                  ? "bg-[var(--surface-app-strong)] text-[var(--text-primary)] border border-[var(--border-strong)]"
-                  : "text-[var(--text-primary)] hover:bg-[var(--surface-muted)]",
+                  ? "bg-(--surface-app-strong) text-(--text-primary) border border-(--border-strong)"
+                  : "text-(--text-primary) hover:bg-(--surface-muted)",
                 inRange
-                  ? "bg-[rgba(89,71,255,0.12)] text-[var(--text-brand)]"
+                  ? "bg-[rgba(89,71,255,0.12)] text-(--text-brand)"
                   : "",
-                weekend && !selected ? "text-[var(--text-secondary)]" : ""
+                weekend && !selected ? "text-(--text-secondary)" : ""
               )}
               aria-pressed={selected}
               aria-current={isToday ? "date" : undefined}
@@ -234,13 +234,13 @@ export const Calendar: React.FC<CalendarProps> = ({
               <span
                 className={cn(
                   "relative z-10",
-                  isHighlighted(day) ? "font-bold text-[var(--text-brand)]" : ""
+                  isHighlighted(day) ? "font-bold text-(--text-brand)" : ""
                 )}
               >
                 {day.getDate()}
               </span>
               {isToday && !selected && (
-                <span className="absolute inset-0 rounded-[12px] border border-dashed border-[var(--action-primary)] opacity-60" />
+                <span className="absolute inset-0 rounded-sm border border-dashed border-(--action-primary) opacity-60" />
               )}
             </button>
           );

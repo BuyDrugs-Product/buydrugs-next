@@ -31,11 +31,11 @@ export const Avatar: React.FC<AvatarProps> = ({
   return (
     <div
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold ring-2 ring-[var(--surface-elevated)]",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold ring-2 ring-(--surface-elevated)",
         sizeClasses[size],
         tone === "brand"
-          ? "bg-[rgba(89,71,255,0.16)] text-[var(--text-brand)]"
-          : "bg-[var(--surface-muted)] text-[var(--text-secondary)]",
+          ? "bg-[rgba(89,71,255,0.16)] text-(--text-brand)"
+          : "bg-(--surface-muted) text-(--text-secondary)",
         className
       )}
       {...rest}
@@ -77,7 +77,7 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
       {remaining > 0 && (
         <div
           className={cn(
-            "flex items-center justify-center rounded-full border border-[var(--border-subtle)] bg-[var(--surface-muted)] font-medium text-[var(--text-secondary)]",
+            "flex items-center justify-center rounded-full border border-(--border-subtle) bg-(--surface-muted) font-medium text-(--text-secondary)",
             sizeClasses[size],
             "text-xs"
           )}

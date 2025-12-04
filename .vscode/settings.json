@@ -1,10 +1,35 @@
 {
-  "css.lint.unknownAtRules": "ignore",
-  "scss.lint.unknownAtRules": "ignore",
-  "less.lint.unknownAtRules": "ignore"
+  // Disable experimental project-wide diagnostics to prevent checking worktree files
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  
+  // Hide worktree directories from file explorer
+  "files.exclude": {
+    "**/.cursor/worktrees/**": true,
+    "**/worktrees/**": true
+  },
+  
+  // Exclude worktree paths from TypeScript language service
+  "typescript.tsserver.watchOptions": {
+    "excludeDirectories": [
+      "**/.cursor/worktrees/**",
+      "**/worktrees/**",
+      "C:/Users/en/.cursor/worktrees/**"
+    ]
+  },
+  
+  // Tell TypeScript to only use specific tsconfig files
+  "typescript.preferences.useLabelDetailsInCompletionEntries": true,
+  
+  // Disable checking files outside workspace
+  "typescript.disableAutomaticTypeAcquisition": false,
+  
+  // Explicitly exclude the problematic path
+  "typescript.preferences.excludePackageJsonAutoImports": "off",
+  
+  // Force TypeScript to treat worktree files as plaintext (prevents type checking)
+  "files.associations": {
+    "**/.cursor/worktrees/**/*.mts": "plaintext",
+    "**/.cursor/worktrees/**/*.ts": "plaintext",
+    "**/.cursor/worktrees/**/*.tsx": "plaintext"
+  }
 }
-
-
-
-
-

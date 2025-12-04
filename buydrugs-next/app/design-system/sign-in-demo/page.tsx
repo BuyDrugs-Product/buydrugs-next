@@ -27,7 +27,7 @@ export default function SignInPageDemo() {
   const handleSignIn = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const data = Object.fromEntries(formData.entries());
+    Object.fromEntries(formData.entries());
     console.log("Sign In submitted");
     alert(`Sign In Submitted!`);
   };

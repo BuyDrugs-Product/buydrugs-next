@@ -26,10 +26,10 @@ export const ListItem: React.FC<ListItemProps> = ({
   return (
     <WrapperComponent
       className={cn(
-        "flex items-center gap-4 rounded-[var(--radius-md)] transition-colors",
+        "flex items-center gap-4 rounded-md transition-colors",
         dense ? "px-4 py-3" : "px-5 py-4",
         interactive
-          ? "hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-elevated)]"
+          ? "hover:bg-(--surface-muted) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface-elevated)"
           : "",
         className
       )}
@@ -38,16 +38,16 @@ export const ListItem: React.FC<ListItemProps> = ({
       tabIndex={onClick ? 0 : undefined}
       {...rest}
     >
-      {leading && <div className="flex-shrink-0">{leading}</div>}
+      {leading && <div className="shrink-0">{leading}</div>}
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">
+        <div className="text-sm font-semibold text-(--text-primary)">
           {title}
         </div>
         {subtitle && (
-          <div className="text-sm text-[var(--text-secondary)]">{subtitle}</div>
+          <div className="text-sm text-(--text-secondary)">{subtitle}</div>
         )}
       </div>
-      {trailing && <div className="flex-shrink-0">{trailing}</div>}
+      {trailing && <div className="shrink-0">{trailing}</div>}
     </WrapperComponent>
   );
 };

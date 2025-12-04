@@ -60,17 +60,17 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   return (
     <div
       className={cn(
-        "relative flex gap-4 rounded-[var(--radius-md)] bg-[var(--surface-muted)] px-5 py-4 transition-colors hover:bg-[var(--surface-app-strong)]",
+        "relative flex gap-4 rounded-md bg-(--surface-muted) px-5 py-4 transition-colors hover:bg-(--surface-app-strong)",
         className
       )}
       {...rest}
     >
       <Avatar {...avatar} size="sm" />
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">
+        <div className="text-sm font-semibold text-(--text-primary)">
           {name}
         </div>
-        <div className="text-sm text-[var(--text-secondary)]">{message}</div>
+        <div className="text-sm text-(--text-secondary)">{message}</div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="success" size="sm" onClick={onAccept}>
             <CheckIcon />
@@ -80,15 +80,15 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
             variant="ghost"
             size="sm"
             onClick={onDeny}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="text-(--text-secondary) hover:text-(--text-primary)"
           >
             <CloseIcon />
             Deny
           </Button>
         </div>
       </div>
-      <div className="flex flex-shrink-0 items-start gap-2">
-        <span className="text-xs font-medium text-[var(--text-tertiary)]">
+      <div className="flex shrink-0 items-start gap-2">
+        <span className="text-xs font-medium text-(--text-tertiary)">
           {time}
         </span>
         <button
@@ -96,7 +96,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--surface-elevated)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-elevated)]"
+          className="flex h-8 w-8 items-center justify-center rounded-sm transition-colors hover:bg-(--surface-elevated) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface-elevated)"
         >
           <KebabIcon />
         </button>
@@ -106,11 +106,11 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         <div
           ref={menuRef}
           role="menu"
-          className="absolute right-2 top-10 z-20 min-w-[160px] rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-elevated)] shadow-[var(--shadow-2)]"
+          className="absolute right-2 top-10 z-20 min-w-[160px] rounded-md border border-(--border-default) bg-(--surface-elevated) shadow-(--shadow-2)"
         >
           <button
             role="menuitem"
-            className="block w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-muted)]"
+            className="block w-full px-3 py-2 text-left text-sm text-(--text-primary) hover:bg-(--surface-muted)"
             onClick={() => {
               onMenuAction?.("mark-read");
               setMenuOpen(false);
@@ -120,7 +120,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
           </button>
           <button
             role="menuitem"
-            className="block w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-muted)]"
+            className="block w-full px-3 py-2 text-left text-sm text-(--text-primary) hover:bg-(--surface-muted)"
             onClick={() => {
               onMenuAction?.("mute");
               setMenuOpen(false);
@@ -130,7 +130,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
           </button>
           <button
             role="menuitem"
-            className="block w-full px-3 py-2 text-left text-sm text-[var(--text-danger)] hover:bg-[var(--surface-muted)]"
+            className="block w-full px-3 py-2 text-left text-sm text-(--text-danger) hover:bg-(--surface-muted)"
             onClick={() => {
               onMenuAction?.("delete");
               setMenuOpen(false);

@@ -11,12 +11,12 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantMap: Record<BadgeVariant, { bg: string; color: string }> = {
   neutral: {
-    bg: "bg-[var(--surface-muted)]",
-    color: "text-[var(--text-primary)]",
+    bg: "bg-(--surface-muted)",
+    color: "text-(--text-primary)",
   },
   brand: {
     bg: "bg-[rgba(89,71,255,0.10)]",
-    color: "text-[var(--text-brand)]",
+    color: "text-(--text-brand)",
   },
   success: {
     bg: "bg-[rgba(18,183,106,0.12)]",
@@ -40,8 +40,8 @@ export const Badge: React.FC<BadgeProps> = ({
   return (
     <span
       className={cn(
-        "inline-flex min-w-[28px] items-center justify-center rounded-[var(--radius-sm)] px-3 py-1 text-sm font-semibold shadow-[var(--shadow-1)]",
-        soft ? `${bg} ${color}` : "bg-[var(--text-primary)] text-white",
+        "inline-flex min-w-[28px] items-center justify-center rounded-sm px-3 py-1 text-sm font-semibold shadow-(--shadow-1)",
+        soft ? `${bg} ${color}` : "bg-(--text-primary) text-white",
         className
       )}
       {...rest}

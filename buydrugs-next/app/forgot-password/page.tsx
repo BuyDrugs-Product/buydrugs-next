@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
       } else {
         setError(result.error || 'Failed to send reset email');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -61,10 +61,10 @@ export default function ForgotPasswordPage() {
               Check Your Email
             </h1>
             <p className="text-(--text-secondary)">
-              We've sent a password reset link to <strong>{email}</strong>
+              We&apos;ve sent a password reset link to <strong>{email}</strong>
             </p>
             <p className="text-sm text-(--text-tertiary)">
-              If you don't see it, check your spam folder.
+              If you don&apos;t see it, check your spam folder.
             </p>
           </div>
 
@@ -98,7 +98,7 @@ export default function ForgotPasswordPage() {
             Forgot Password?
           </h1>
           <p className="text-(--text-secondary)">
-            No worries! Enter your email and we'll send you reset instructions.
+            No worries! Enter your email and we&apos;ll send you reset instructions.
           </p>
         </div>
 

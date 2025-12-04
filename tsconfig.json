@@ -1,0 +1,19 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./buydrugs-next"
+    }
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/.cursor/**",
+    "**/worktrees/**",
+    "**/design-system-showcase/**",
+    "C:/Users/en/.cursor/worktrees/**",
+    "**/Users/en/.cursor/**"
+  ],
+  "compilerOptions": {
+    "skipLibCheck": true
+  }
+}

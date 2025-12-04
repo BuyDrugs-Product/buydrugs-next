@@ -50,7 +50,7 @@ export async function signInWithEmail(
 export async function signUpWithEmail(
   email: string,
   password: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<AuthResult> {
   const supabase = await createClient();
 

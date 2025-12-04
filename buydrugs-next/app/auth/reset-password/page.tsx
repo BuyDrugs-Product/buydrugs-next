@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
       } else {
         setError(result.error || 'Failed to update password');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

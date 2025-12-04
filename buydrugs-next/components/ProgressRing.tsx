@@ -65,7 +65,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
           <span
             className={cn(
               "text-xs font-semibold",
-              status === "brand" ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"
+              status === "brand" ? "text-(--text-primary)" : "text-(--text-primary)"
             )}
           >
             {Math.round(progress)}%
