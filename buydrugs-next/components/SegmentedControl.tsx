@@ -30,7 +30,7 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
   return (
     <div
       className={cn(
-        "inline-flex rounded-[var(--radius-pill)] bg-[var(--surface-muted)] p-1 shadow-[var(--shadow-1)]"
+        "inline-flex rounded-pill bg-(--surface-muted) p-1 shadow-(--shadow-1)"
       )}
       role="tablist"
       aria-label={ariaLabel}
@@ -45,11 +45,11 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
             aria-selected={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "relative inline-flex items-center justify-center rounded-[var(--radius-pill)] px-4 font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-muted)]",
+              "relative inline-flex items-center justify-center rounded-pill px-4 font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface-muted)",
               sizeClasses[size],
               selected
-                ? "bg-[var(--surface-elevated)] text-[var(--text-brand)] shadow-[var(--shadow-1)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "bg-(--surface-elevated) text-(--text-brand) shadow-(--shadow-1)"
+                : "text-(--text-secondary) hover:text-(--text-primary)"
             )}
           >
             {option.icon && (

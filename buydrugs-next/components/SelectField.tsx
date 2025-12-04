@@ -21,11 +21,11 @@ interface SelectFieldProps
 
 const stateStyles: Record<FieldState, string> = {
   default:
-    "border-[var(--border-default)] focus-visible:border-[var(--border-focus)] focus-visible:ring-[rgba(89,71,255,0.18)]",
+    "border-(--border-default) focus-visible:border-(--border-focus) focus-visible:ring-[rgba(89,71,255,0.18)]",
   success:
     "border-[rgba(18,183,106,0.4)] focus-visible:border-[var(--text-success)] focus-visible:ring-[rgba(18,183,106,0.18)]",
   error:
-    "border-[var(--action-destructive)] focus-visible:border-[var(--action-destructive)] focus-visible:ring-[rgba(240,68,56,0.18)]",
+    "border-(--action-destructive) focus-visible:border-(--action-destructive) focus-visible:ring-[rgba(240,68,56,0.18)]",
 };
 
 export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
@@ -45,8 +45,8 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
             className={cn(
               "text-sm font-medium",
               disabled
-                ? "text-[var(--text-tertiary)]"
-                : "text-[var(--text-primary)]"
+                ? "text-(--text-tertiary)"
+                : "text-(--text-primary)"
             )}
           >
             {label}
@@ -58,9 +58,9 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
             ref={ref}
             disabled={disabled}
             className={cn(
-              "w-full appearance-none rounded-[var(--radius-sm)] border bg-[var(--surface-elevated)] px-4 py-3 text-sm text-[var(--text-primary)] transition focus-visible:outline-none focus-visible:ring-4",
+              "w-full appearance-none rounded-sm border bg-(--surface-elevated) px-4 py-3 text-sm text-(--text-primary) transition focus-visible:outline-none focus-visible:ring-4",
               disabled
-                ? "cursor-not-allowed border-[var(--border-subtle)] bg-[var(--surface-muted)] text-[var(--text-tertiary)] opacity-70"
+                ? "cursor-not-allowed border-(--border-subtle) bg-(--surface-muted) text-(--text-tertiary) opacity-70"
                 : stateStyles[resolvedState],
               className
             )}
@@ -76,7 +76,7 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
               </option>
             ))}
           </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 inline-flex h-4 w-4 -translate-y-1/2 items-center justify-center text-[var(--text-tertiary)]">
+          <span className="pointer-events-none absolute right-4 top-1/2 inline-flex h-4 w-4 -translate-y-1/2 items-center justify-center text-(--text-tertiary)">
             <ChevronDown />
           </span>
         </div>
@@ -85,8 +85,8 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
             className={cn(
               "text-xs",
               errorText
-                ? "text-[var(--action-destructive)]"
-                : "text-[var(--text-secondary)]"
+                ? "text-(--action-destructive)"
+                : "text-(--text-secondary)"
             )}
           >
             {errorText ?? helperText}

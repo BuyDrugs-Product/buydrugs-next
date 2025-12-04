@@ -48,8 +48,8 @@ const GoogleIcon: React.FC = () => (
 );
 
 // --- TESTIMONIAL CARD ---
-
-const TestimonialCard: React.FC<{ testimonial: Testimonial; index: number }> = ({ testimonial, index }) => (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _TestimonialCard: React.FC<{ testimonial: Testimonial; index: number }> = ({ testimonial, index }) => (
   <div
     className="animate-element space-y-3 rounded-3xl border border-white/15 bg-white/10 p-5 text-white shadow-[0_20px_60px_rgba(15,15,40,0.25)] backdrop-blur-lg"
     style={{ animationDelay: `${600 + index * 120}ms` }}

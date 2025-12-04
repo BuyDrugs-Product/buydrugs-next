@@ -11,7 +11,11 @@ import SignUpExperience, {
 export default function CompleteProfilePage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
-    const [initialData, setInitialData] = useState<any>(null);
+    const [initialData, setInitialData] = useState<{
+      fullName: string;
+      email: string;
+      providerProfile?: unknown;
+    } | null>(null);
     const [role, setRole] = useState<RoleValue>('customer');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -131,7 +135,7 @@ export default function CompleteProfilePage() {
             });
 
             // Build update data with role-specific onboarding completion
-            const updateData: any = {
+            const updateData: Record<string, unknown> = {
                 experience_role: activeRole, // Save the role from the form
                 full_name: payload.account.fullName,
                 phone: payload.account.phone,
@@ -195,9 +199,9 @@ export default function CompleteProfilePage() {
             // Redirect to home
             router.push('/');
             router.refresh();
-        } catch (err: any) {
+        } catch (err) {
             console.error('[CompleteProfile] Profile completion error:', err);
-            setError(err.message || 'Failed to update profile');
+            setError(err instanceof Error ? err.message : 'Failed to update profile');
         } finally {
             setIsSubmitting(false);
         }

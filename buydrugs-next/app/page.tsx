@@ -49,7 +49,6 @@ export default function Home() {
   // Use the custom hook
   const {
     startSearch: runSearch,
-    cancelSearch,
     viewModel: searchViewModel,
     status: searchStatus,
     error: searchError,
@@ -105,16 +104,6 @@ export default function Home() {
 
     // Return focus to the first field so users can quickly add another medication
     medicationNameRef.current?.focus();
-  };
-
-  const updateMedication = (
-    id: string,
-    field: keyof Omit<MedicationRow, "id">,
-    value: string
-  ) => {
-    setMedications((prev) =>
-      prev.map((med) => (med.id === id ? { ...med, [field]: value } : med))
-    );
   };
 
   const removeMedication = (id: string) => {

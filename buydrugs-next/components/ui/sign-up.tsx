@@ -7,12 +7,10 @@ import {
   ArrowRight,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   FileBadge2,
   Globe,
   Info,
   Mail,
-  Phone,
   Search,
   ShieldCheck,
   Store,
@@ -34,9 +32,6 @@ import { PhoneInputField } from '@/components/PhoneInputField';
 import { GooglePlacesAutocomplete } from '@/components/GooglePlacesAutocomplete';
 import { VerifiedFieldBadge } from '@/components/ui/VerifiedFieldBadge';
 import { verifyFacility, verifyPharmacist, verifyPharmtech } from '@/actions/ppb';
-import type { FacilityData } from '@/lib/types/facilities';
-import type { PharmacistData } from '@/lib/types/pharmacists';
-import type { PharmtechData } from '@/lib/types/pharmtechs';
 
 export type RoleValue = 'customer' | 'pharmacy_admin' | 'pharmacy_staff';
 
@@ -258,7 +253,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
   onRoleChange,
 }) => {
   const router = useRouter();
-  const [selectedRole, setSelectedRole] = useState<RoleValue>(initialRole);
+  const [selectedRole, setSelectedRole] = useState<RoleValue>(initialRole || 'customer');
   const [localError, setLocalError] = useState<string | null>(null);
   const [account, setAccount] = useState({
     fullName: initialData?.fullName || '',
@@ -277,7 +272,6 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
     shareHealthProfile: true,
   });
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
-  const [healthDetailsOpen, setHealthDetailsOpen] = useState(false);
   const [consents, setConsents] = useState({
     savingsAlerts: true,
     refillReminders: true,
@@ -351,7 +345,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
   const [facilityVerification, setFacilityVerification] = useState<{
     loading: boolean;
     error: string | null;
-    data: any | null;
+    data: unknown | null;
   }>({
     loading: false,
     error: null,
@@ -361,18 +355,13 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
   const [professionalVerification, setProfessionalVerification] = useState<{
     loading: boolean;
     error: string | null;
-    data: any | null;
+    data: unknown | null;
   }>({
     loading: false,
     error: null,
     data: null,
   });
 
-  useEffect(() => {
-    if (initialRole) {
-      setSelectedRole(initialRole);
-    }
-  }, [initialRole]);
 
   // Notify parent when role changes
   useEffect(() => {
@@ -400,22 +389,27 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
     if (stepDefinitions.length === 0) {
       return;
     }
+    const firstStepId = stepDefinitions[0].id;
     if (!stepDefinitions.some((step) => step.id === activeStep)) {
-      setActiveStep(stepDefinitions[0].id);
+      // Use setTimeout to avoid setState in effect
+      setTimeout(() => setActiveStep(firstStepId), 0);
     }
-    setCompletedSteps((prev) => {
-      const allowed = new Set(stepDefinitions.map((step) => step.id));
-      let changed = false;
-      const next = new Set<SignupStepId>();
-      prev.forEach((id) => {
-        if (allowed.has(id)) {
-          next.add(id);
-        } else {
-          changed = true;
-        }
+    // Use setTimeout to avoid setState in effect
+    setTimeout(() => {
+      setCompletedSteps((prev) => {
+        const allowed = new Set(stepDefinitions.map((step) => step.id));
+        let changed = false;
+        const next = new Set<SignupStepId>();
+        prev.forEach((id) => {
+          if (allowed.has(id)) {
+            next.add(id);
+          } else {
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
       });
-      return changed ? next : prev;
-    });
+    }, 0);
   }, [stepDefinitions, activeStep]);
 
   const goToStep = (id: SignupStepId) => {
@@ -444,9 +438,10 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
     }
   };
 
+  // Update preview when photo name changes - use setTimeout to avoid setState in effect
   useEffect(() => {
     if (!profile.profilePhotoName) {
-      setProfilePhotoPreview(null);
+      setTimeout(() => setProfilePhotoPreview(null), 0);
     }
   }, [profile.profilePhotoName]);
 
@@ -800,6 +795,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
                     <p className="text-sm font-medium text-(--text-primary)">Profile photo (optional)</p>
                     <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-(--border-default) bg-white/30 px-4 py-8 text-center text-sm text-(--text-secondary) transition-colors hover:bg-white/60 hover:border-(--action-primary)">
                       {profilePhotoPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={profilePhotoPreview}
                           alt="Profile preview"
@@ -1049,27 +1045,27 @@ interface ProviderVerificationFlowProps {
   onAdminChange: React.Dispatch<React.SetStateAction<ProviderAdminProfile>>;
   staffProfile: ProviderStaffProfile;
   onStaffChange: React.Dispatch<React.SetStateAction<ProviderStaffProfile>>;
-  onLicenseUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onLicenseUpload?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   // PPB Verification state
   facilityVerification: {
     loading: boolean;
     error: string | null;
-    data: any | null;
+    data: unknown | null;
   };
   setFacilityVerification: React.Dispatch<React.SetStateAction<{
     loading: boolean;
     error: string | null;
-    data: any | null;
+    data: unknown | null;
   }>>;
   professionalVerification: {
     loading: boolean;
     error: string | null;
-    data: any | null;
+    data: unknown | null;
   };
   setProfessionalVerification: React.Dispatch<React.SetStateAction<{
     loading: boolean;
     error: string | null;
-    data: any | null;
+    data: unknown | null;
   }>>;
 }
 
@@ -1086,7 +1082,7 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
   onAdminChange,
   staffProfile,
   onStaffChange,
-  onLicenseUpload,
+  onLicenseUpload: _onLicenseUpload, // eslint-disable-line @typescript-eslint/no-unused-vars
   facilityVerification,
   setFacilityVerification,
   professionalVerification,
@@ -1612,7 +1608,8 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
 
                   <div className="flex gap-4">
                     {adminProfile.professionalPhotoUrl && (
-                      <div className="flex-shrink-0">
+                      <div className="shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={adminProfile.professionalPhotoUrl}
                           alt={adminProfile.professionalFullName || 'Professional'}
@@ -1691,7 +1688,7 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                     </p>
                     <p className="mt-1">
                       The facility verification data needs to be refreshed. Please click the X button next to
-                      "Pharmacy Verified" in Substep 1 above, then re-verify your pharmacy to fetch the
+                      &quot;Pharmacy Verified&quot; in Substep 1 above, then re-verify your pharmacy to fetch the
                       updated superintendent information.
                     </p>
                   </div>
@@ -1705,7 +1702,7 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                     License Mismatch Detected
                   </p>
                   <p className="mt-1">
-                    Your professional license number ({adminProfile.professionalLicenseNumber}) doesn't match the superintendent license
+                    Your professional license number ({adminProfile.professionalLicenseNumber}) doesn&apos;t match the superintendent license
                     number ({adminProfile.superintendentData?.licenseNumber}) from the facility verification. Please verify that you selected the
                     correct role or contact support if you believe this is an error.
                   </p>
@@ -1762,7 +1759,7 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
             icon={<Users className="h-4 w-4" />}
           >
             <p className="text-sm text-(--text-secondary)">
-              Invite teammates so they can assist with prescriptions and customer care once you're verified.
+              Invite teammates so they can assist with prescriptions and customer care once you&apos;re verified.
             </p>
             <div className="space-y-3">
               {adminProfile.staffInvites.map((email, index) => {

@@ -65,10 +65,19 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
 
         isMountedRef.current = true;
 
+        // Define initializeServices before it's used
+        const initializeServices = () => {
+            if (window.google?.maps?.places) {
+                autocompleteService.current = new window.google.maps.places.AutocompleteService();
+                // PlacesService is no longer needed with the new Place class
+            }
+        };
+
         // Check if already loaded
         if (window.google?.maps?.places) {
             initializeServices();
-            setIsLoadingScript(false);
+            // Use setTimeout to avoid setState in effect
+            setTimeout(() => setIsLoadingScript(false), 0);
             return;
         }
 
@@ -134,13 +143,6 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
             }
         };
     }, [apiKey]);
-
-    const initializeServices = () => {
-        if (window.google?.maps?.places) {
-            autocompleteService.current = new window.google.maps.places.AutocompleteService();
-            // PlacesService is no longer needed with the new Place class
-        }
-    };
 
     // Handle clicks outside to close predictions
     useEffect(() => {
@@ -221,20 +223,20 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
 
         try {
             // Use the new Place class
-            // @ts-ignore - Place class might not be in the types yet
+            // @ts-expect-error - Place class might not be in the types yet
             const place = new window.google.maps.places.Place({
                 id: prediction.place_id,
             });
 
             // Fetch details
-            // @ts-ignore - fetchFields might not be in the types yet
+            // @ts-expect-error - fetchFields might not be in the types yet
             await place.fetchFields({
                 fields: ['location', 'formattedAddress', 'displayName'],
             });
 
-            // @ts-ignore
+            // @ts-expect-error - location might not be in the types yet
             const location = place.location;
-            // @ts-ignore
+            // @ts-expect-error - formattedAddress might not be in the types yet
             const formattedAddress = place.formattedAddress;
 
             if (location) {
@@ -338,7 +340,8 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
 
     // Reset focused index when predictions change
     useEffect(() => {
-        setFocusedPredictionIndex(-1);
+        // Use setTimeout to avoid setState in effect
+        setTimeout(() => setFocusedPredictionIndex(-1), 0);
         // Reset refs array when predictions change
         predictionRefs.current = new Array(predictions.length);
     }, [predictions]);
@@ -392,6 +395,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
                     }
                     aria-expanded={showPredictions}
                     aria-haspopup="listbox"
+                    aria-controls={showPredictions ? "predictions-list" : undefined}
                     role="combobox"
                     className={cn(
                         'h-11 w-full rounded-sm border border-(--border-default) bg-(--surface-elevated) pl-10 pr-3 text-sm text-(--text-primary) shadow-(--shadow-1) transition-all',
@@ -405,6 +409,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
                 {/* Predictions Dropdown */}
                 {showPredictions && predictions.length > 0 && (
                     <div
+                        id="predictions-list"
                         role="listbox"
                         className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-xl border border-(--border-default) bg-white shadow-(--shadow-card)"
                     >

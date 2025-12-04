@@ -207,14 +207,14 @@ export function useMedicationSearch(): UseMedicationSearchReturn {
             void executeStep(nextRequest, attempt + 1);
           }, nextDelay);
 
-        } catch (err: any) {
+        } catch (err) {
            // Error handling remains similar - retry if transient
            if (activeSearchId.current !== searchId) return;
            console.error("Search step failed:", err);
            
            // If first attempt failed completely, show error
            if (attempt === 0 && !viewModel) {
-             setError(err.message || "Search failed");
+             setError(err instanceof Error ? err.message : "Search failed");
              setStatus("error");
              setIsRetrying(false);
            } else {
@@ -235,7 +235,7 @@ export function useMedicationSearch(): UseMedicationSearchReturn {
       // Start with full request
       void executeStep(initialRequest, 0);
     },
-    [cleanup] 
+    [cleanup, viewModel] 
   );
 
   return {
