@@ -438,12 +438,7 @@ export const SignUpExperience: React.FC<SignUpExperienceProps> = ({
     }
   };
 
-  // Update preview when photo name changes - use setTimeout to avoid setState in effect
-  useEffect(() => {
-    if (!profile.profilePhotoName) {
-      setTimeout(() => setProfilePhotoPreview(null), 0);
-    }
-  }, [profile.profilePhotoName]);
+
 
   const handleProfilePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1076,6 +1071,11 @@ const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
+// Type guard for verification data with processing_time_ms
+const hasProcessingTime = (data: unknown): data is { processing_time_ms?: number } => {
+  return typeof data === 'object' && data !== null;
+};
+
 const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
   role,
   adminProfile,
@@ -1383,12 +1383,15 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                     <p className="text-sm font-semibold text-emerald-900">
                       Pharmacy Details Verified
                     </p>
-                    {facilityVerification.data && (
-                      <VerifiedFieldBadge
-                        verified={true}
-                        processingTime={facilityVerification.data.processing_time_ms}
-                      />
-                    )}
+                    {(() => {
+                      const data = facilityVerification.data;
+                      return data && hasProcessingTime(data) ? (
+                        <VerifiedFieldBadge
+                          verified={true}
+                          processingTime={data.processing_time_ms}
+                        />
+                      ) : null;
+                    })()}
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1542,7 +1545,7 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
               </div>
 
               {/* Verify Professional Button */}
-              <div className="flex gap-2">
+              <div className="flex gap-2" key="verify-professional-button">
                 <Button
                   type="button"
                   onClick={handleProfessionalVerification}
@@ -1600,10 +1603,15 @@ const ProviderVerificationFlow: React.FC<ProviderVerificationFlowProps> = ({
                     <p className="text-sm font-semibold text-emerald-900">
                       Professional Credentials Verified
                     </p>
-                    <VerifiedFieldBadge
-                      verified={true}
-                      processingTime={professionalVerification.data.processing_time_ms}
-                    />
+                    {(() => {
+                      const data = professionalVerification.data;
+                      return data && hasProcessingTime(data) ? (
+                        <VerifiedFieldBadge
+                          verified={true}
+                          processingTime={data.processing_time_ms}
+                        />
+                      ) : null;
+                    })()}
                   </div>
 
                   <div className="flex gap-4">

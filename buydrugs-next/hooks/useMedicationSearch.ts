@@ -210,10 +210,19 @@ export function useMedicationSearch(): UseMedicationSearchReturn {
                     } else {
                         // Retry strictly if time remains
                         const elapsed = Date.now() - startTimeRef.current;
-                        if (elapsed < SEARCH_CONFIG.MAX_DURATION_MS) {
+                        if (elapsed < SEARCH_CONFIG.MAX_DURATION_MS + EXTRA_DURATION_BUFFER) {
+                            // Compute retry delay using exponential backoff (same as success path)
+                            let nextDelay =
+                                SEARCH_CONFIG.INITIAL_POLL_INTERVAL_MS *
+                                Math.pow(SEARCH_CONFIG.BACKOFF_MULTIPLIER, attempt);
+                            
+                            if (nextDelay > SEARCH_CONFIG.MAX_POLL_INTERVAL_MS) {
+                                nextDelay = SEARCH_CONFIG.MAX_POLL_INTERVAL_MS;
+                            }
+                            
                             timeoutRef.current = setTimeout(() => {
                                 void executeStep(currentRequest, attempt + 1);
-                            }, SEARCH_CONFIG.INITIAL_POLL_INTERVAL_MS);
+                            }, nextDelay);
                         }
                     }
                 }
